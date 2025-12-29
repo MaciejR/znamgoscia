@@ -30,8 +30,8 @@ def main():
         print("BŁĄD: Brak zmiennej SUPABASE_URL lub NEXT_PUBLIC_SUPABASE_URL")
         sys.exit(1)
 
-    if not os.environ.get('SUPABASE_SERVICE_ROLE_KEY'):
-        print("BŁĄD: Brak zmiennej SUPABASE_SERVICE_ROLE_KEY")
+    if not os.environ.get('SUPABASE_SECRET_KEY') and not os.environ.get('SUPABASE_SERVICE_ROLE_KEY'):
+        print("BŁĄD: Brak zmiennej SUPABASE_SECRET_KEY")
         sys.exit(1)
 
     # Inicjalizacja

@@ -98,25 +98,38 @@ class TransfermarktScraper:
             print("Nie znaleziono tabeli klubów")
             return []
 
-        rows = table.find_all('tr', class_=['odd', 'even'])
+        rows = table.find_all('tr')
 
         for row in rows:
             try:
-                # Znajdź link do klubu
-                club_link = row.find('a', class_='vereinprofil_tooltip')
+                # Znajdź link do klubu - szukamy linku z /verein/ w href
+                club_link = None
+                for link in row.find_all('a'):
+                    href = link.get('href', '')
+                    if '/verein/' in href and '/startseite/' in href:
+                        club_link = link
+                        break
+
                 if not club_link:
                     continue
 
                 club_name = club_link.get('title', '') or club_link.text.strip()
+                if not club_name or club_name in ['name', 'Kadra']:
+                    continue
+
                 club_url = club_link.get('href', '')
 
                 # Wyciągnij ID klubu z URL
                 tm_id_match = re.search(r'/verein/(\d+)', club_url)
                 tm_id = tm_id_match.group(1) if tm_id_match else None
 
+                # Sprawdź czy już mamy ten klub
+                if any(c.transfermarkt_id == tm_id for c in clubs):
+                    continue
+
                 # Logo klubu
-                logo_img = row.find('img', class_='tiny_wappen')
-                logo_url = logo_img.get('src', '') if logo_img else None
+                logo_img = row.find('img', class_='tiny_wappen') or row.find('img', class_='bilderrahmen-fixed')
+                logo_url = logo_img.get('src', logo_img.get('data-src', '')) if logo_img else None
 
                 # Skrót nazwy (pierwsze 3 litery)
                 name_short = self._get_club_short_name(club_name)
@@ -221,28 +234,49 @@ class TransfermarktScraper:
         """
         Parsuje wiersz z danymi zawodnika z tabeli składu.
         """
-        # Znajdź link do profilu zawodnika
-        player_link = row.find('a', class_='spielprofil_tooltip')
+        # Znajdź link do profilu zawodnika - szukamy linku z /profil/spieler/
+        player_link = None
+        for link in row.find_all('a'):
+            href = link.get('href', '')
+            if '/profil/spieler/' in href:
+                player_link = link
+                break
+
         if not player_link:
             return None
 
         name = player_link.text.strip()
+        if not name or len(name) < 2:
+            return None
+
         player_url = player_link.get('href', '')
 
         # ID zawodnika
-        tm_id_match = re.search(r'/profil/spieler/(\d+)', player_url)
+        tm_id_match = re.search(r'/spieler/(\d+)', player_url)
         tm_id = tm_id_match.group(1) if tm_id_match else None
 
         # Zdjęcie
         img = row.find('img', class_='bilderrahmen-fixed')
+        if not img:
+            img = row.find('img', attrs={'data-src': True})
         photo_url = img.get('data-src', img.get('src', '')) if img else None
 
-        # Pozycja
-        position_td = row.find('td', class_='posrela')
+        # Pozycja - szukamy w różnych miejscach
         position = ''
+        position_td = row.find('td', class_='posrela')
         if position_td:
             pos_text = position_td.get_text(strip=True)
             position = parse_position(pos_text)
+        else:
+            # Alternatywnie szukamy w innych td
+            for td in row.find_all('td'):
+                text = td.get_text(strip=True)
+                if text in ['Bramkarz', 'Obrońca', 'Pomocnik', 'Napastnik',
+                           'Goalkeeper', 'Centre-Back', 'Left-Back', 'Right-Back',
+                           'Defensive Midfield', 'Central Midfield', 'Attacking Midfield',
+                           'Left Winger', 'Right Winger', 'Centre-Forward', 'Second Striker']:
+                    position = parse_position(text)
+                    break
 
         # Narodowość
         nationality = ''
@@ -255,11 +289,10 @@ class TransfermarktScraper:
         # Data urodzenia i wiek
         birth_date = None
         age = None
-        age_td = row.find_all('td', class_='zentriert')
-        for td in age_td:
+        for td in row.find_all('td'):
             text = td.get_text(strip=True)
-            # Format: "DD.MM.YYYY (XX)"
-            date_match = re.search(r'(\d{2})\.(\d{2})\.(\d{4})', text)
+            # Format: "DD.MM.YYYY" lub "sty 1, 2000"
+            date_match = re.search(r'(\d{1,2})\.(\d{1,2})\.(\d{4})', text)
             if date_match:
                 day, month, year = date_match.groups()
                 try:
@@ -274,6 +307,13 @@ class TransfermarktScraper:
         value_td = row.find('td', class_='rechts hauptlink')
         if value_td:
             market_value = parse_market_value(value_td.get_text(strip=True))
+        else:
+            # Szukaj w linkach z marktwertverlauf
+            for link in row.find_all('a'):
+                href = link.get('href', '')
+                if 'marktwertverlauf' in href:
+                    market_value = parse_market_value(link.get_text(strip=True))
+                    break
 
         # Numer na koszulce
         jersey_number = None
@@ -283,6 +323,14 @@ class TransfermarktScraper:
                 jersey_number = int(number_div.get_text(strip=True))
             except ValueError:
                 pass
+
+        # Jeśli brakuje narodowości, ustaw domyślną
+        if not nationality:
+            nationality = 'Nieznana'
+
+        # Jeśli brakuje pozycji, ustaw domyślną
+        if not position:
+            position = 'Pomocnik'
 
         return {
             'name': name,
@@ -372,6 +420,151 @@ class TransfermarktScraper:
                     continue
 
         return career
+
+    def get_league_teams_for_season(self, season: int) -> List[Club]:
+        """
+        Pobiera listę klubów z Ekstraklasy dla danego sezonu.
+        Sezon 2023 oznacza sezon 2023/24.
+        """
+        url = f"/pko-bp-ekstraklasa/startseite/wettbewerb/PL1/plus/?saison_id={season}"
+        print(f"Pobieranie klubów Ekstraklasy dla sezonu {season}/{season+1}...")
+
+        soup = self._respectful_request(url)
+        if not soup:
+            print(f"Nie udało się pobrać strony ligi dla sezonu {season}")
+            return []
+
+        clubs = []
+        table = soup.find('table', class_='items')
+        if not table:
+            print(f"Nie znaleziono tabeli klubów dla sezonu {season}")
+            return []
+
+        rows = table.find_all('tr')
+
+        for row in rows:
+            try:
+                club_link = None
+                for link in row.find_all('a'):
+                    href = link.get('href', '')
+                    if '/verein/' in href and '/startseite/' in href:
+                        club_link = link
+                        break
+
+                if not club_link:
+                    continue
+
+                club_name = club_link.get('title', '') or club_link.text.strip()
+                if not club_name or club_name in ['name', 'Kadra']:
+                    continue
+
+                club_url = club_link.get('href', '')
+                tm_id_match = re.search(r'/verein/(\d+)', club_url)
+                tm_id = tm_id_match.group(1) if tm_id_match else None
+
+                if any(c.transfermarkt_id == tm_id for c in clubs):
+                    continue
+
+                logo_img = row.find('img', class_='tiny_wappen') or row.find('img', class_='bilderrahmen-fixed')
+                logo_url = logo_img.get('src', logo_img.get('data-src', '')) if logo_img else None
+                name_short = self._get_club_short_name(club_name)
+
+                club = Club(
+                    name=club_name,
+                    name_short=name_short,
+                    league="Ekstraklasa",
+                    country="Polska",
+                    logo_url=logo_url,
+                    transfermarkt_id=tm_id
+                )
+                clubs.append(club)
+
+            except Exception as e:
+                continue
+
+        print(f"  Znaleziono {len(clubs)} klubów dla sezonu {season}/{season+1}")
+        return clubs
+
+    def get_team_squad_for_season(self, club: Club, season: int) -> List[Dict[str, Any]]:
+        """
+        Pobiera skład klubu dla danego sezonu.
+        """
+        if not club.transfermarkt_id:
+            return []
+
+        # Transfermarkt wymaga nazwy klubu w URL
+        club_slug = ''.join(c for c in club.name.lower() if c.isalnum() or c == ' ').replace(' ', '-')
+        url = f"/{club_slug}/kader/verein/{club.transfermarkt_id}/saison_id/{season}"
+        print(f"  Pobieranie składu: {club.name} ({season}/{season+1})")
+
+        soup = self._respectful_request(url)
+        if not soup:
+            return []
+
+        players = []
+        table = soup.find('table', class_='items')
+        if not table:
+            return []
+
+        rows = table.find_all('tr', class_=['odd', 'even'])
+
+        for row in rows:
+            try:
+                player_data = self._parse_player_row(row)
+                if player_data:
+                    player_data['season'] = season
+                    players.append(player_data)
+            except Exception as e:
+                continue
+
+        return players
+
+    def scrape_historical(self, start_season: int = 2010, end_season: int = 2024) -> tuple[List[Club], List[Dict], set]:
+        """
+        Pobiera wszystkich zawodników z historycznych sezonów Ekstraklasy.
+
+        Args:
+            start_season: Pierwszy sezon do pobrania (np. 2010 = sezon 2010/11)
+            end_season: Ostatni sezon do pobrania (np. 2024 = sezon 2024/25)
+
+        Returns:
+            Tuple z listą klubów, listą zawodników i setem ID już pobranych zawodników
+        """
+        all_clubs = {}  # tm_id -> Club
+        all_players = {}  # tm_id -> player_data (unikalne)
+        seen_player_ids = set()
+
+        for season in range(start_season, end_season + 1):
+            print(f"\n{'='*60}")
+            print(f"SEZON {season}/{season+1}")
+            print(f"{'='*60}")
+
+            clubs = self.get_league_teams_for_season(season)
+
+            for club in clubs:
+                if club.transfermarkt_id and club.transfermarkt_id not in all_clubs:
+                    all_clubs[club.transfermarkt_id] = club
+
+                players = self.get_team_squad_for_season(club, season)
+                print(f"    Znaleziono {len(players)} zawodników")
+
+                for player_data in players:
+                    tm_id = player_data.get('transfermarkt_id')
+                    if tm_id and tm_id not in seen_player_ids:
+                        seen_player_ids.add(tm_id)
+                        player_data['club'] = club
+                        player_data['first_seen_season'] = season
+                        all_players[tm_id] = player_data
+                    elif tm_id and tm_id in all_players:
+                        # Aktualizuj sezon jeśli wcześniejszy
+                        if season < all_players[tm_id].get('first_seen_season', 9999):
+                            all_players[tm_id]['first_seen_season'] = season
+
+            print(f"\nPodsumowanie po sezonie {season}/{season+1}:")
+            print(f"  Łącznie klubów: {len(all_clubs)}")
+            print(f"  Łącznie unikalnych zawodników: {len(all_players)}")
+
+        return list(all_clubs.values()), list(all_players.values()), seen_player_ids
 
     def scrape_all(self) -> tuple[List[Club], List[Dict], List[Dict]]:
         """
