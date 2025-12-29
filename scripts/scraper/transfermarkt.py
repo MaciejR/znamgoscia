@@ -98,25 +98,38 @@ class TransfermarktScraper:
             print("Nie znaleziono tabeli klubów")
             return []
 
-        rows = table.find_all('tr', class_=['odd', 'even'])
+        rows = table.find_all('tr')
 
         for row in rows:
             try:
-                # Znajdź link do klubu
-                club_link = row.find('a', class_='vereinprofil_tooltip')
+                # Znajdź link do klubu - szukamy linku z /verein/ w href
+                club_link = None
+                for link in row.find_all('a'):
+                    href = link.get('href', '')
+                    if '/verein/' in href and '/startseite/' in href:
+                        club_link = link
+                        break
+
                 if not club_link:
                     continue
 
                 club_name = club_link.get('title', '') or club_link.text.strip()
+                if not club_name or club_name in ['name', 'Kadra']:
+                    continue
+
                 club_url = club_link.get('href', '')
 
                 # Wyciągnij ID klubu z URL
                 tm_id_match = re.search(r'/verein/(\d+)', club_url)
                 tm_id = tm_id_match.group(1) if tm_id_match else None
 
+                # Sprawdź czy już mamy ten klub
+                if any(c.transfermarkt_id == tm_id for c in clubs):
+                    continue
+
                 # Logo klubu
-                logo_img = row.find('img', class_='tiny_wappen')
-                logo_url = logo_img.get('src', '') if logo_img else None
+                logo_img = row.find('img', class_='tiny_wappen') or row.find('img', class_='bilderrahmen-fixed')
+                logo_url = logo_img.get('src', logo_img.get('data-src', '')) if logo_img else None
 
                 # Skrót nazwy (pierwsze 3 litery)
                 name_short = self._get_club_short_name(club_name)
