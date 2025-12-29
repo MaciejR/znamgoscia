@@ -492,7 +492,9 @@ class TransfermarktScraper:
         if not club.transfermarkt_id:
             return []
 
-        url = f"/verein/{club.transfermarkt_id}/kader/plus/1/galerie/0?saison_id={season}"
+        # Transfermarkt wymaga nazwy klubu w URL
+        club_slug = ''.join(c for c in club.name.lower() if c.isalnum() or c == ' ').replace(' ', '-')
+        url = f"/{club_slug}/kader/verein/{club.transfermarkt_id}/saison_id/{season}"
         print(f"  Pobieranie składu: {club.name} ({season}/{season+1})")
 
         soup = self._respectful_request(url)
