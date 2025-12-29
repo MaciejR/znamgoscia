@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
 
     // Formatuj wyniki
     const players: SearchResult[] = (data || []).map(player => {
-      const club = player.clubs as Record<string, unknown> | null
+      const club = player.clubs as unknown as Record<string, unknown> | null
       return {
         id: player.id,
         name: player.name,
