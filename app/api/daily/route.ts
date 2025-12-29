@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/daily - pobierz dzisiejszego zawodnika
 // GET /api/daily?date=2024-01-15 - pobierz zawodnika z konkretnego dnia
 export async function GET(request: NextRequest) {

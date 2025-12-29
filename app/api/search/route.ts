@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase'
 import { normalizeString } from '@/lib/utils'
 import { SearchResult } from '@/lib/types'
 
+export const dynamic = 'force-dynamic'
+
 // Cache dla wyników wyszukiwania (5 minut)
 const searchCache = new Map<string, { data: SearchResult[]; timestamp: number }>()
 const CACHE_TTL = 5 * 60 * 1000 // 5 minut

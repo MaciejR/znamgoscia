@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase'
 import { compareGuess } from '@/lib/game-logic'
 import { Player, CareerEntry } from '@/lib/types'
 
+export const dynamic = 'force-dynamic'
+
 interface GuessRequestBody {
   date: string
   guessedPlayerId: number
