@@ -12,17 +12,18 @@ export function compareGuess(
   answerCareer: CareerEntry[]
 ): GuessResult {
   const isCorrect = guess.id === answer.id
+  const commonClubs = findCommonClubs(guessCareer, answerCareer)
 
   return {
     correct: isCorrect,
     guessedPlayer: guess,
     hints: {
       nationality: compareField(guess.nationality, answer.nationality),
-      position: compareField(guess.position, answer.position),
-      club: compareField(guess.club_name || '', answer.club_name || ''),
-      league: compareField(guess.club_league || '', answer.club_league || ''),
+      position: comparePosition(guess.position, answer.position),
+      club: compareClub(guess.club_name || '', answer.club_name || '', commonClubs),
+      league: compareLeague(guess.club_league || '', answer.club_league || '', guessCareer, answerCareer),
       age: compareAge(guess.age, answer.age),
-      commonClubs: findCommonClubs(guessCareer, answerCareer),
+      commonClubs: commonClubs,
     },
     answer: isCorrect ? answer : undefined,
   }
@@ -35,6 +36,65 @@ function compareField(guessValue: string, answerValue: string): Hint {
     status: isCorrect ? 'correct' : 'wrong',
     value: guessValue,
   }
+}
+
+// Porównaj pozycję (z podobnymi pozycjami jako "close")
+function comparePosition(guessPos: string, answerPos: string): Hint {
+  if (guessPos.toLowerCase() === answerPos.toLowerCase()) {
+    return { status: 'correct', value: guessPos }
+  }
+
+  // Grupuj podobne pozycje
+  const positionGroups: { [key: string]: string[] } = {
+    'atak': ['napastnik', 'skrzydłowy', 'lewoskrzydłowy', 'prawoskrzydłowy'],
+    'pomoc': ['pomocnik', 'defensywny pomocnik', 'ofensywny pomocnik', 'środkowy pomocnik'],
+    'obrona': ['obrońca', 'środkowy obrońca', 'lewy obrońca', 'prawy obrońca'],
+  }
+
+  const guessLower = guessPos.toLowerCase()
+  const answerLower = answerPos.toLowerCase()
+
+  for (const group of Object.values(positionGroups)) {
+    const guessInGroup = group.some(p => guessLower.includes(p) || p.includes(guessLower))
+    const answerInGroup = group.some(p => answerLower.includes(p) || p.includes(answerLower))
+    if (guessInGroup && answerInGroup) {
+      return { status: 'close', value: guessPos }
+    }
+  }
+
+  return { status: 'wrong', value: guessPos }
+}
+
+// Porównaj klub (z wspólnymi klubami w karierze jako "close")
+function compareClub(guessClub: string, answerClub: string, commonClubs: string[]): Hint {
+  if (guessClub.toLowerCase() === answerClub.toLowerCase()) {
+    return { status: 'correct', value: guessClub }
+  }
+
+  // Jeśli mają wspólne kluby w historii kariery
+  if (commonClubs.length > 0) {
+    return { status: 'close', value: guessClub }
+  }
+
+  return { status: 'wrong', value: guessClub }
+}
+
+// Porównaj ligę (z wspólnymi ligami w karierze jako "close")
+function compareLeague(
+  guessLeague: string,
+  answerLeague: string,
+  guessCareer: CareerEntry[],
+  answerCareer: CareerEntry[]
+): Hint {
+  if (guessLeague.toLowerCase() === answerLeague.toLowerCase()) {
+    return { status: 'correct', value: guessLeague }
+  }
+
+  // Sprawdź czy grali w tej samej lidze kiedykolwiek
+  // Na razie sprawdzamy tylko aktualną ligę, bo nie mamy historii lig
+  // TODO: dodać historię lig do kariery
+
+  return { status: 'wrong', value: guessLeague }
 }
 
 // Porównaj wiek
