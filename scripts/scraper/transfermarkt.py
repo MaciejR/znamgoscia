@@ -234,28 +234,49 @@ class TransfermarktScraper:
         """
         Parsuje wiersz z danymi zawodnika z tabeli składu.
         """
-        # Znajdź link do profilu zawodnika
-        player_link = row.find('a', class_='spielprofil_tooltip')
+        # Znajdź link do profilu zawodnika - szukamy linku z /profil/spieler/
+        player_link = None
+        for link in row.find_all('a'):
+            href = link.get('href', '')
+            if '/profil/spieler/' in href:
+                player_link = link
+                break
+
         if not player_link:
             return None
 
         name = player_link.text.strip()
+        if not name or len(name) < 2:
+            return None
+
         player_url = player_link.get('href', '')
 
         # ID zawodnika
-        tm_id_match = re.search(r'/profil/spieler/(\d+)', player_url)
+        tm_id_match = re.search(r'/spieler/(\d+)', player_url)
         tm_id = tm_id_match.group(1) if tm_id_match else None
 
         # Zdjęcie
         img = row.find('img', class_='bilderrahmen-fixed')
+        if not img:
+            img = row.find('img', attrs={'data-src': True})
         photo_url = img.get('data-src', img.get('src', '')) if img else None
 
-        # Pozycja
-        position_td = row.find('td', class_='posrela')
+        # Pozycja - szukamy w różnych miejscach
         position = ''
+        position_td = row.find('td', class_='posrela')
         if position_td:
             pos_text = position_td.get_text(strip=True)
             position = parse_position(pos_text)
+        else:
+            # Alternatywnie szukamy w innych td
+            for td in row.find_all('td'):
+                text = td.get_text(strip=True)
+                if text in ['Bramkarz', 'Obrońca', 'Pomocnik', 'Napastnik',
+                           'Goalkeeper', 'Centre-Back', 'Left-Back', 'Right-Back',
+                           'Defensive Midfield', 'Central Midfield', 'Attacking Midfield',
+                           'Left Winger', 'Right Winger', 'Centre-Forward', 'Second Striker']:
+                    position = parse_position(text)
+                    break
 
         # Narodowość
         nationality = ''
@@ -268,11 +289,10 @@ class TransfermarktScraper:
         # Data urodzenia i wiek
         birth_date = None
         age = None
-        age_td = row.find_all('td', class_='zentriert')
-        for td in age_td:
+        for td in row.find_all('td'):
             text = td.get_text(strip=True)
-            # Format: "DD.MM.YYYY (XX)"
-            date_match = re.search(r'(\d{2})\.(\d{2})\.(\d{4})', text)
+            # Format: "DD.MM.YYYY" lub "sty 1, 2000"
+            date_match = re.search(r'(\d{1,2})\.(\d{1,2})\.(\d{4})', text)
             if date_match:
                 day, month, year = date_match.groups()
                 try:
@@ -287,6 +307,13 @@ class TransfermarktScraper:
         value_td = row.find('td', class_='rechts hauptlink')
         if value_td:
             market_value = parse_market_value(value_td.get_text(strip=True))
+        else:
+            # Szukaj w linkach z marktwertverlauf
+            for link in row.find_all('a'):
+                href = link.get('href', '')
+                if 'marktwertverlauf' in href:
+                    market_value = parse_market_value(link.get_text(strip=True))
+                    break
 
         # Numer na koszulce
         jersey_number = None
@@ -296,6 +323,14 @@ class TransfermarktScraper:
                 jersey_number = int(number_div.get_text(strip=True))
             except ValueError:
                 pass
+
+        # Jeśli brakuje narodowości, ustaw domyślną
+        if not nationality:
+            nationality = 'Nieznana'
+
+        # Jeśli brakuje pozycji, ustaw domyślną
+        if not position:
+            position = 'Pomocnik'
 
         return {
             'name': name,
