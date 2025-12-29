@@ -1,0 +1,127 @@
+// Klub
+export interface Club {
+  id: number
+  name: string
+  name_short: string | null
+  league: string
+  country: string
+  logo_url: string | null
+  transfermarkt_id: string | null
+}
+
+// Zawodnik
+export interface Player {
+  id: number
+  name: string
+  name_normalized: string
+  birth_date: string | null
+  age: number | null
+  nationality: string
+  nationality_code: string | null
+  position: Position
+  position_detailed: string | null
+  current_club_id: number | null
+  jersey_number: number | null
+  market_value: number | null
+  photo_url: string | null
+  transfermarkt_id: string | null
+  is_active: boolean
+  // Joined from clubs table
+  club_name?: string
+  club_short?: string
+  club_league?: string
+  club_logo?: string
+}
+
+// Pozycje (uproszczone)
+export type Position = 'Bramkarz' | 'Obronca' | 'Pomocnik' | 'Napastnik'
+
+// Historia kariery
+export interface CareerEntry {
+  id: number
+  player_id: number
+  club_id: number | null
+  club_name: string
+  season_start: number
+  season_end: number | null
+  appearances: number
+  goals: number
+}
+
+// Dzienny zawodnik
+export interface DailyPlayer {
+  id: number
+  date: string
+  player_id: number
+  player?: Player
+}
+
+// Status podpowiedzi
+export type HintStatus = 'correct' | 'wrong' | 'close'
+
+// Podpowiedź dla pojedynczego pola
+export interface Hint {
+  status: HintStatus
+  value: string | number
+  direction?: 'higher' | 'lower' // tylko dla wieku
+}
+
+// Wynik porównania
+export interface GuessResult {
+  correct: boolean
+  guessedPlayer: Player
+  hints: {
+    nationality: Hint
+    position: Hint
+    club: Hint
+    league: Hint
+    age: Hint
+    commonClubs: string[]
+  }
+  answer?: Player // tylko jeśli correct=true lub koniec gry
+}
+
+// Stan gry
+export type GameStatus = 'playing' | 'won' | 'lost'
+
+export interface GameState {
+  date: string
+  guesses: GuessResult[]
+  status: GameStatus
+  maxGuesses: number
+}
+
+// Wynik wyszukiwania
+export interface SearchResult {
+  id: number
+  name: string
+  club_name: string | null
+  club_short: string | null
+  position: Position
+  nationality_code: string | null
+  photo_url: string | null
+}
+
+// Statystyki użytkownika
+export interface UserStats {
+  gamesPlayed: number
+  gamesWon: number
+  currentStreak: number
+  maxStreak: number
+  guessDistribution: number[] // [0] = 1 próba, [1] = 2 próby, etc.
+}
+
+// Odpowiedź z API
+export interface DailyResponse {
+  date: string
+  playerExists: boolean
+}
+
+export interface GuessRequest {
+  date: string
+  guessedPlayerId: number
+}
+
+export interface SearchResponse {
+  players: SearchResult[]
+}
