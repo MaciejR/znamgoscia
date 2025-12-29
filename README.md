@@ -41,10 +41,14 @@ npm install
 3. Skopiuj `.env.example` do `.env.local` i uzupełnij dane:
 
 ```env
+# Nowe klucze API Supabase (2024/2025)
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx...
+SUPABASE_SECRET_KEY=sb_secret_xxx...
 ```
+
+> **Uwaga:** Supabase wprowadził nowy system kluczy. Znajdziesz je w:
+> `Project Settings → API Keys → Publishable key / Secret key`
 
 ### 3. Scraping danych (Python)
 
@@ -92,7 +96,7 @@ ekstra-typ/
 │   ├── scrape_players.py # Pełny scraping
 │   └── update_daily.py   # Wybór dziennego zawodnika
 ├── supabase/              # Migracje SQL
-└── .github/workflows/     # GitHub Actions
+└── docs/github-workflows-example/  # Przykłady GitHub Actions
 ```
 
 ## Znaczenie kolorów
@@ -120,18 +124,21 @@ Wybiera losowego zawodnika na dany dzień.
 ### Weekly Update (niedziela o 03:00 UTC)
 Aktualizuje bazę danych (nowi zawodnicy, transfery, wartości).
 
+> **Uwaga:** Pliki workflow znajdują się w `docs/github-workflows-example/`.
+> Skopiuj je do `.github/workflows/` i skonfiguruj sekrety.
+
 ## Zmienne sekretne (GitHub Secrets)
 
 - `SUPABASE_URL` - URL projektu Supabase
-- `SUPABASE_SERVICE_ROLE_KEY` - Klucz service role
+- `SUPABASE_SECRET_KEY` - Secret key (sb_secret_xxx...)
 
 ## Deployment na Vercel
 
 1. Połącz repozytorium z Vercel
 2. Dodaj zmienne środowiskowe:
    - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   - `SUPABASE_SECRET_KEY`
 3. Deploy!
 
 ## Licencja
