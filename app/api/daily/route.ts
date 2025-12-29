@@ -68,8 +68,8 @@ export async function GET(request: NextRequest) {
 
     // Dla dat przeszłych zwróć pełne dane zawodnika
     if (isPastDate) {
-      const player = dailyPlayer.players as Record<string, unknown>
-      const club = player?.clubs as Record<string, unknown>
+      const player = dailyPlayer.players as unknown as Record<string, unknown>
+      const club = player?.clubs as unknown as Record<string, unknown>
 
       return NextResponse.json({
         date,
