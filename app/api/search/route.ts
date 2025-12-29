@@ -84,11 +84,11 @@ export async function GET(request: NextRequest) {
     // Czyszczenie starych wpisów z cache (co 100 requestów)
     if (searchCache.size > 100) {
       const now = Date.now()
-      for (const [key, value] of searchCache.entries()) {
+      searchCache.forEach((value, key) => {
         if (now - value.timestamp > CACHE_TTL) {
           searchCache.delete(key)
         }
-      }
+      })
     }
 
     return NextResponse.json({ players })
