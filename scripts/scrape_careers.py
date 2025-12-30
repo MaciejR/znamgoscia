@@ -192,18 +192,24 @@ def main():
                         client.table('career_history').insert({
                             'player_id': player_id,
                             'club_name': entry['club_name'],
-                            'league_name': entry.get('league_name'),
                             'season_start': entry['season_start'],
                             'season_end': entry['season_end'],
                         }).execute()
                         stats['careers_added'] += 1
                     except Exception as e:
-                        # Może już istnieje
-                        pass
+                        error_msg = str(e)
+                        if 'duplicate' not in error_msg.lower() and 'unique' not in error_msg.lower():
+                            print(f"    Błąd zapisu: {error_msg[:100]}")
+                            stats['errors'] += 1
             else:
                 print(f"  Brak danych o karierze")
 
             stats['players_processed'] += 1
+
+            # Odśwież klienta co 50 graczy (uniknij timeout)
+            if (i + 1) % 50 == 0:
+                print(f"\n  [Odświeżanie połączenia...]")
+                client = get_supabase_client()
 
     except KeyboardInterrupt:
         print("\n\nPrzerwano przez użytkownika")
