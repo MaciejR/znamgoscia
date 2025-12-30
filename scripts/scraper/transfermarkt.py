@@ -289,18 +289,37 @@ class TransfermarktScraper:
         # Data urodzenia i wiek
         birth_date = None
         age = None
-        for td in row.find_all('td'):
+
+        # Wiek jest w TD z klasą 'zentriert' - ale pomijamy TD z numerem koszulki
+        zentriert_tds = row.find_all('td', class_='zentriert')
+        for td in zentriert_tds:
+            # Pomiń TD z numerem koszulki (ma klasę 'rueckennummer')
+            td_classes = td.get('class', [])
+            if 'rueckennummer' in td_classes:
+                continue
+
             text = td.get_text(strip=True)
-            # Format: "DD.MM.YYYY" lub "sty 1, 2000"
-            date_match = re.search(r'(\d{1,2})\.(\d{1,2})\.(\d{4})', text)
-            if date_match:
-                day, month, year = date_match.groups()
-                try:
-                    birth_date = date(int(year), int(month), int(day))
-                    age = calculate_age(birth_date)
-                except ValueError:
-                    pass
-                break
+            # Sprawdź czy to wiek (liczba 15-50)
+            if text.isdigit():
+                num = int(text)
+                if 15 <= num <= 50:
+                    age = num
+                    break
+
+        # Jeśli nie znaleźliśmy wieku, spróbuj ze starego formatu daty
+        if age is None:
+            for td in row.find_all('td'):
+                text = td.get_text(strip=True)
+                # Format: "DD.MM.YYYY"
+                date_match = re.search(r'(\d{1,2})\.(\d{1,2})\.(\d{4})', text)
+                if date_match:
+                    day, month, year = date_match.groups()
+                    try:
+                        birth_date = date(int(year), int(month), int(day))
+                        age = calculate_age(birth_date)
+                    except ValueError:
+                        pass
+                    break
 
         # Wartość rynkowa
         market_value = None
