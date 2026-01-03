@@ -2,7 +2,7 @@
 
 import { GuessResult as GuessResultType, HintStatus } from '@/lib/types'
 import { getFlagEmoji } from '@/lib/utils'
-import { ArrowUp, ArrowDown } from 'lucide-react'
+import { ArrowUp, ArrowDown, HelpCircle } from 'lucide-react'
 import Image from 'next/image'
 
 interface GuessResultProps {
@@ -36,8 +36,11 @@ export default function GuessResult({ result, index }: GuessResultProps) {
               </div>
             )}
           </div>
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate flex items-center gap-1">
             {guessedPlayer.name}
+            {result.isHint && (
+              <HelpCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+            )}
           </span>
         </div>
 

@@ -21,7 +21,10 @@ import GuessResultComponent from './GuessResult'
 import PlayerCard from './PlayerCard'
 import ShareButton from './ShareButton'
 import StatsModal from './StatsModal'
+import HintButton from './HintButton'
 import { Loader2, RefreshCw } from 'lucide-react'
+
+type HintField = 'nationality' | 'position' | 'club' | 'league' | 'age'
 
 const MAX_GUESSES = 8
 
@@ -33,6 +36,9 @@ export default function Game() {
   const [answerPlayer, setAnswerPlayer] = useState<Player | null>(null)
   const [showStats, setShowStats] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Hint state
+  const [isHintLoading, setIsHintLoading] = useState(false)
 
   // Inicjalizacja gry
   useEffect(() => {
@@ -173,6 +179,106 @@ export default function Game() {
     }
   }, [gameState, isGuessing, userStats])
 
+  // Oblicz które pola są już zgodne na podstawie strzałów
+  const getMatchedFields = useCallback((): HintField[] => {
+    if (!gameState) return []
+
+    const matchedFields: Set<HintField> = new Set()
+
+    for (const guess of gameState.guesses) {
+      if (guess.hints.nationality.status === 'correct') {
+        matchedFields.add('nationality')
+      }
+      if (guess.hints.position.status === 'correct') {
+        matchedFields.add('position')
+      }
+      if (guess.hints.club.status === 'correct') {
+        matchedFields.add('club')
+      }
+      if (guess.hints.league.status === 'correct') {
+        matchedFields.add('league')
+      }
+      if (guess.hints.age.status === 'correct' || guess.hints.age.status === 'close') {
+        matchedFields.add('age')
+      }
+    }
+
+    return Array.from(matchedFields)
+  }, [gameState])
+
+  // Obsługa wskazówki
+  const handleHint = useCallback(async () => {
+    if (!gameState || gameState.status !== 'playing' || isHintLoading) return
+
+    setIsHintLoading(true)
+    setError(null)
+
+    try {
+      const matchedFields = getMatchedFields()
+
+      // Pobierz wskazówkę
+      const hintResponse = await fetch('/api/hint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: gameState.date,
+          matchedFields,
+        }),
+      })
+
+      if (!hintResponse.ok) {
+        throw new Error('Failed to get hint')
+      }
+
+      const hintData = await hintResponse.json()
+
+      if (hintData.noHintsAvailable) {
+        setError('Brak dostępnych wskazówek - wszystkie kategorie już są zgodne.')
+        return
+      }
+
+      if (!hintData.hint?.player?.id) {
+        throw new Error('Invalid hint response')
+      }
+
+      // Wywołaj /api/guess z zawodnikiem ze wskazówki
+      const guessResponse = await fetch('/api/guess', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: gameState.date,
+          guessedPlayerId: hintData.hint.player.id,
+          isLastGuess: false,
+        }),
+      })
+
+      if (!guessResponse.ok) {
+        throw new Error('Failed to check hint player')
+      }
+
+      const result: GuessResult = await guessResponse.json()
+
+      // Dodaj flagę isHint
+      result.isHint = true
+
+      // Dodaj do listy strzałów
+      const newGuesses = [...gameState.guesses, result]
+      const newState: GameState = {
+        ...gameState,
+        guesses: newGuesses,
+      }
+
+      setGameState(newState)
+      saveGameState(newState)
+
+    } catch (err) {
+      console.error('Error getting hint:', err)
+      setError('Nie udało się pobrać wskazówki.')
+    } finally {
+      setIsHintLoading(false)
+    }
+  }, [gameState, isHintLoading, getMatchedFields])
+
   // Loading state
   if (isLoading) {
     return (
@@ -225,7 +331,16 @@ export default function Game() {
       {/* Input do zgadywania */}
       {isPlaying && (
         <div className="mb-6">
-          <GuessInput onGuess={handleGuess} disabled={isGuessing} />
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <GuessInput onGuess={handleGuess} disabled={isGuessing} />
+            </div>
+            <HintButton
+              onClick={handleHint}
+              disabled={isGuessing || gameState.guesses.length === 0}
+              isLoading={isHintLoading}
+            />
+          </div>
           {error && (
             <p className="mt-2 text-sm text-red-500 text-center">{error}</p>
           )}
@@ -310,6 +425,7 @@ export default function Game() {
         isOpen={showStats}
         onClose={() => setShowStats(false)}
       />
+
     </div>
   )
 }

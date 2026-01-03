@@ -79,6 +79,7 @@ export interface GuessResult {
     commonClubs: string[]
   }
   answer?: Player // tylko jeśli correct=true lub koniec gry
+  isHint?: boolean // czy to wskazówka (nie strzał użytkownika)
 }
 
 // Stan gry
