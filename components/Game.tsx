@@ -16,6 +16,7 @@ import {
   loadUserStats,
   getSessionId,
 } from '@/lib/utils'
+import { useAuth } from '@/lib/auth-context'
 import GuessInput from './GuessInput'
 import GuessResultComponent from './GuessResult'
 import PlayerCard from './PlayerCard'
@@ -29,6 +30,7 @@ type HintField = 'nationality' | 'position' | 'club' | 'league' | 'age'
 const MAX_GUESSES = 8
 
 export default function Game() {
+  const { user } = useAuth()
   const [gameState, setGameState] = useState<GameState | null>(null)
   const [userStats, setUserStats] = useState<UserStats>(createDefaultStats())
   const [isLoading, setIsLoading] = useState(true)
@@ -43,7 +45,7 @@ export default function Game() {
   // Inicjalizacja gry
   useEffect(() => {
     initGame()
-  }, [])
+  }, [user]) // Przeładuj gdy użytkownik się zaloguje/wyloguje
 
   // Nasłuchuj na przycisk statystyk w headerze
   useEffect(() => {
@@ -64,10 +66,26 @@ export default function Game() {
 
       // Wczytaj zapisany stan gry
       const savedState = loadGameState() as GameState | null
-      const savedStats = loadUserStats() as UserStats | null
 
-      if (savedStats) {
-        setUserStats(savedStats)
+      // Wczytaj statystyki - z serwera dla zalogowanych, z localStorage dla gości
+      if (user) {
+        try {
+          const response = await fetch(`/api/user-stats?user_id=${user.id}`)
+          if (response.ok) {
+            const stats = await response.json()
+            setUserStats(stats)
+          } else {
+            setUserStats(createDefaultStats())
+          }
+        } catch (err) {
+          console.error('Error loading user stats:', err)
+          setUserStats(createDefaultStats())
+        }
+      } else {
+        const savedStats = loadUserStats() as UserStats | null
+        if (savedStats) {
+          setUserStats(savedStats)
+        }
       }
 
       // Sprawdź czy mamy zapisaną grę z dzisiaj
@@ -164,7 +182,8 @@ export default function Game() {
               date: gameState.date,
               guesses_count: newGuesses.length,
               won: newState.status === 'won',
-              session_id: getSessionId(),
+              session_id: user ? null : getSessionId(), // Użyj session_id tylko dla gości
+              user_id: user?.id || null, // Dodaj user_id dla zalogowanych użytkowników
             }),
           })
         } catch {

@@ -6,13 +6,14 @@ interface StatsRequestBody {
   guesses_count: number
   won: boolean
   session_id?: string
+  user_id?: string
 }
 
 // POST /api/stats - zapisz statystyki gry
 export async function POST(request: NextRequest) {
   try {
     const body: StatsRequestBody = await request.json()
-    const { date, guesses_count, won, session_id } = body
+    const { date, guesses_count, won, session_id, user_id } = body
 
     if (!date || guesses_count === undefined || won === undefined) {
       return NextResponse.json(
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest) {
         guesses_count,
         won,
         session_id: session_id || null,
+        user_id: user_id || null,
       })
 
     if (error) {

@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect } from 'react'
-import { X, Trophy, Flame, Target, BarChart3 } from 'lucide-react'
+import { X, Trophy, Flame, Target, BarChart3, User } from 'lucide-react'
 import { UserStats } from '@/lib/types'
 import { getWinPercentage } from '@/lib/game-logic'
+import { useAuth } from '@/lib/auth-context'
 
 interface StatsModalProps {
   stats: UserStats
@@ -12,6 +13,8 @@ interface StatsModalProps {
 }
 
 export default function StatsModal({ stats, isOpen, onClose }: StatsModalProps) {
+  const { user, profile } = useAuth()
+
   // Zamknij modalem Escape
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -42,10 +45,22 @@ export default function StatsModal({ stats, isOpen, onClose }: StatsModalProps) 
       <div className="modal-content p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <BarChart3 className="w-6 h-6 text-ekstra-green" />
-            Statystyki
-          </h2>
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <BarChart3 className="w-6 h-6 text-ekstra-green" />
+              Statystyki
+            </h2>
+            {user && profile ? (
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
+                <User className="w-3 h-3" />
+                {profile.display_name || profile.username}
+              </p>
+            ) : (
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                Grasz jako gość
+              </p>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
@@ -113,6 +128,15 @@ export default function StatsModal({ stats, isOpen, onClose }: StatsModalProps) 
           <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4">
             Zagraj swoją pierwszą grę, aby zobaczyć statystyki!
           </p>
+        )}
+
+        {/* Guest notice */}
+        {!user && stats.gamesPlayed > 0 && (
+          <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <p className="text-sm text-blue-600 dark:text-blue-400">
+              💡 Zaloguj się, aby zapisywać swoje statystyki na wielu urządzeniach!
+            </p>
+          </div>
         )}
       </div>
     </div>
