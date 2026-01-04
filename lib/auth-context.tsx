@@ -10,6 +10,8 @@ interface UserProfile {
   display_name: string | null
 }
 
+type OAuthProvider = 'google' | 'azure'
+
 interface AuthContextType {
   user: User | null
   profile: UserProfile | null
@@ -17,6 +19,7 @@ interface AuthContextType {
   loading: boolean
   signUp: (email: string, password: string, username?: string) => Promise<{ error: Error | null }>
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
+  signInWithOAuth: (provider: OAuthProvider) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
   updateProfile: (updates: Partial<UserProfile>) => Promise<{ error: Error | null }>
 }
@@ -133,6 +136,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Logowanie przez OAuth (Google, Microsoft)
+  const signInWithOAuth = async (provider: OAuthProvider) => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      })
+
+      if (error) {
+        return { error }
+      }
+
+      return { error: null }
+    } catch (error) {
+      return { error: error as Error }
+    }
+  }
+
   // Wylogowanie
   const signOut = async () => {
     await supabase.auth.signOut()
@@ -174,6 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     signUp,
     signIn,
+    signInWithOAuth,
     signOut,
     updateProfile,
   }
