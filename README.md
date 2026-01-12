@@ -10,7 +10,14 @@ Codzienny quiz w stylu Wordle, gdzie gracze zgadują zawodnika z polskiej Ekstra
 - 8 prób na odgadnięcie
 - Kolorowe podpowiedzi (zielony = poprawnie, żółty = blisko, czerwony = źle)
 - Autocomplete wyszukiwania zawodników
-- Statystyki gracza (localStorage)
+- **Uwierzytelnianie użytkowników**:
+  - Logowanie/rejestracja przez email i hasło
+  - Logowanie przez Google
+  - Logowanie przez Microsoft
+  - Opcja gry jako gość (bez konta)
+- **Statystyki gracza**:
+  - Dla zalogowanych: zapisywane w bazie danych (synchronizacja między urządzeniami)
+  - Dla gości: localStorage (dane lokalne)
 - Archiwum poprzednich dni
 - Responsywny design (mobile-first)
 - Dark mode
@@ -37,8 +44,11 @@ npm install
 ### 2. Konfiguracja Supabase
 
 1. Utwórz projekt na [supabase.com](https://supabase.com)
-2. Uruchom migrację z `supabase/migrations/001_initial_schema.sql`
-3. Skopiuj `.env.example` do `.env.local` i uzupełnij dane:
+2. Uruchom migracje z folderu `supabase/migrations/`:
+   - `001_initial_schema.sql` - podstawowa struktura bazy danych
+   - `002_add_user_authentication.sql` - uwierzytelnianie użytkowników i statystyki
+3. **(Opcjonalnie)** Skonfiguruj OAuth providers (Google, Microsoft) - zobacz [docs/OAUTH_SETUP.md](docs/OAUTH_SETUP.md)
+4. Skopiuj `.env.example` do `.env.local` i uzupełnij dane:
 
 ```env
 # Nowe klucze API Supabase (2024/2025)
@@ -75,18 +85,24 @@ ekstra-typ/
 │   │   ├── daily/         # Dzienny zawodnik
 │   │   ├── guess/         # Sprawdzanie odpowiedzi
 │   │   ├── search/        # Autocomplete
-│   │   └── stats/         # Statystyki
+│   │   ├── stats/         # Statystyki gry
+│   │   └── user-stats/    # Statystyki użytkownika
+│   ├── auth/              # OAuth callback
+│   │   └── callback/      # Obsługa przekierowań OAuth
 │   ├── archiwum/          # Strona archiwum
 │   ├── jak-grac/          # Instrukcja gry
 │   └── page.tsx           # Strona główna
 ├── components/            # Komponenty React
+│   ├── AuthModal.tsx     # Modal logowania/rejestracji
 │   ├── Game.tsx          # Główny komponent gry
 │   ├── GuessInput.tsx    # Input z autocomplete
 │   ├── GuessResult.tsx   # Wynik strzału
+│   ├── HeaderNav.tsx     # Nawigacja z menu użytkownika
 │   ├── PlayerCard.tsx    # Karta zawodnika
 │   ├── ShareButton.tsx   # Udostępnianie wyniku
 │   └── StatsModal.tsx    # Modal statystyk
 ├── lib/                   # Logika i utilities
+│   ├── auth-context.tsx  # Context uwierzytelniania
 │   ├── game-logic.ts     # Logika gry
 │   ├── supabase.ts       # Klient Supabase
 │   ├── types.ts          # Typy TypeScript
@@ -96,7 +112,12 @@ ekstra-typ/
 │   ├── scrape_players.py # Pełny scraping
 │   └── update_daily.py   # Wybór dziennego zawodnika
 ├── supabase/              # Migracje SQL
-└── docs/github-workflows-example/  # Przykłady GitHub Actions
+│   └── migrations/
+│       ├── 001_initial_schema.sql           # Podstawowa struktura
+│       └── 002_add_user_authentication.sql  # Uwierzytelnianie
+├── docs/
+│   ├── OAUTH_SETUP.md                # Konfiguracja Google/Microsoft OAuth
+│   └── github-workflows-example/     # Przykłady GitHub Actions
 ```
 
 ## Znaczenie kolorów
