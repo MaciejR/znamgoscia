@@ -50,10 +50,10 @@ export default function StatsModal({ stats, isOpen, onClose }: StatsModalProps) 
               <BarChart3 className="w-6 h-6 text-ekstra-green" />
               Statystyki
             </h2>
-            {user && profile ? (
+            {user ? (
               <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
                 <User className="w-3 h-3" />
-                {profile.display_name || profile.username}
+                {profile?.display_name || profile?.username || user.email}
               </p>
             ) : (
               <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
