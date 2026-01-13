@@ -157,7 +157,8 @@ async function fetchPlayerWithClub(playerId: number): Promise<Player | null> {
     return null
   }
 
-  const club = data.clubs as Record<string, unknown> | null
+  const clubData = data.clubs
+  const club = (Array.isArray(clubData) ? clubData[0] : clubData) as Record<string, unknown> | null
 
   return {
     ...data,
@@ -255,7 +256,8 @@ async function findPlayerWithMatchingField(
   // Wybierz losowego z wyników
   const randomIndex = Math.floor(Math.random() * data.length)
   const randomPlayer = data[randomIndex]
-  const club = randomPlayer.clubs as Record<string, unknown> | null
+  const clubData = randomPlayer.clubs
+  const club = (Array.isArray(clubData) ? clubData[0] : clubData) as Record<string, unknown> | null
 
   return {
     ...randomPlayer,

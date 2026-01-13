@@ -57,7 +57,8 @@ export async function GET(request: NextRequest) {
 
     // Formatuj wyniki
     const players: SearchResult[] = (data || []).map(player => {
-      const club = player.clubs as Record<string, unknown> | null
+      const clubData = player.clubs
+      const club = (Array.isArray(clubData) ? clubData[0] : clubData) as Record<string, unknown> | null
       return {
         id: player.id,
         name: player.name,
@@ -84,11 +85,11 @@ export async function GET(request: NextRequest) {
     // Czyszczenie starych wpisów z cache (co 100 requestów)
     if (searchCache.size > 100) {
       const now = Date.now()
-      for (const [key, value] of searchCache.entries()) {
+      Array.from(searchCache.entries()).forEach(([key, value]) => {
         if (now - value.timestamp > CACHE_TTL) {
           searchCache.delete(key)
         }
-      }
+      })
     }
 
     return NextResponse.json({ players })
