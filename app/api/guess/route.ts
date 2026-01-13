@@ -119,7 +119,8 @@ async function fetchPlayerWithClub(playerId: number): Promise<{ player: Player |
     return { player: null }
   }
 
-  const club = data.clubs as Record<string, unknown> | null
+  const clubData = data.clubs
+  const club = (Array.isArray(clubData) ? clubData[0] : clubData) as Record<string, unknown> | null
 
   return {
     player: {

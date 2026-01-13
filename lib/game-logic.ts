@@ -73,7 +73,7 @@ export function findCommonClubs(
   const answerClubs = new Set(answerCareer.map(c => c.club_name.toLowerCase()))
 
   const common: string[] = []
-  for (const club of guessClubs) {
+  Array.from(guessClubs).forEach(club => {
     if (answerClubs.has(club)) {
       // Znajdź oryginalną nazwę (z dużymi literami)
       const original = guessCareer.find(c => c.club_name.toLowerCase() === club)
@@ -81,7 +81,7 @@ export function findCommonClubs(
         common.push(original.club_name)
       }
     }
-  }
+  })
 
   return common
 }
