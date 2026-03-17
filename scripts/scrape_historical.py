@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """
 Skrypt do pobierania wszystkich historycznych zawodników Ekstraklasy.
-Pobiera dane z sezonów od 2010/11 do 2024/25.
-
-UWAGA: Ten skrypt może działać bardzo długo (kilka godzin) ze względu na
-dużą liczbę żądań i opóźnienia między nimi (aby nie przeciążyć serwera).
+Pobiera dane z sezonów i BUDUJE historię kariery bezpośrednio z danych sezonowych
+(bez potrzeby odwiedzania osobnych stron kariery).
 
 Użycie:
     python scrape_historical.py [start_season] [end_season]
@@ -18,11 +16,11 @@ Przykłady:
 import os
 import sys
 import argparse
+from dataclasses import asdict
 from datetime import datetime
 
 from dotenv import load_dotenv
 
-# Dodaj ścieżkę do modułów
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from scraper.transfermarkt import TransfermarktScraper
@@ -44,10 +42,8 @@ def main():
 
     args = parser.parse_args()
 
-    # Załaduj zmienne środowiskowe
     load_dotenv()
 
-    # Sprawdź czy mamy wymagane zmienne
     if not os.environ.get('SUPABASE_URL') and not os.environ.get('NEXT_PUBLIC_SUPABASE_URL'):
         print("BŁĄD: Brak zmiennej SUPABASE_URL lub NEXT_PUBLIC_SUPABASE_URL")
         sys.exit(1)
@@ -65,96 +61,110 @@ def main():
     print(f"Start: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
-    # Szacowany czas
     seasons_count = args.end_season - args.start_season + 1
-    estimated_requests = seasons_count * 18 * 2  # ~18 klubów/sezon, 2 requesty/klub
+    estimated_requests = seasons_count * 18 * 2
     avg_delay = (args.min_delay + args.max_delay) / 2
     estimated_time_min = (estimated_requests * avg_delay) / 60
     print(f"\nSzacowany czas: ~{estimated_time_min:.0f} minut ({estimated_time_min/60:.1f} godzin)")
     print(f"Szacowana liczba żądań: ~{estimated_requests}")
     print()
 
-    # Inicjalizacja
     scraper = TransfermarktScraper(min_delay=args.min_delay, max_delay=args.max_delay)
 
     if not args.dry_run:
         db = DatabaseManager()
 
-    # Statystyki
     stats = {
         'clubs_added': 0,
         'clubs_updated': 0,
         'players_added': 0,
         'players_updated': 0,
+        'career_entries': 0,
         'errors': 0,
     }
 
+    # Cache klubów: tm_id -> db_id
+    club_id_cache = {}
+
     try:
-        # Pobierz dane historyczne
-        clubs, players, seen_ids = scraper.scrape_historical(
-            start_season=args.start_season,
-            end_season=args.end_season
-        )
+        for season in range(args.start_season, args.end_season + 1):
+            print(f"\n{'='*60}")
+            print(f"SEZON {season}/{season+1}")
+            print(f"{'='*60}")
 
-        print("\n" + "=" * 60)
-        print("PODSUMOWANIE SCRAPINGU")
-        print("=" * 60)
-        print(f"Znaleziono klubów: {len(clubs)}")
-        print(f"Znaleziono unikalnych zawodników: {len(players)}")
+            clubs = scraper.get_league_teams_for_season(season)
 
-        if args.dry_run:
-            print("\n[DRY RUN] Dane nie zostały zapisane do bazy")
-            # Wyświetl przykładowych zawodników
-            print("\nPrzykładowi zawodnicy:")
-            for i, player in enumerate(players[:10]):
-                print(f"  {i+1}. {player['name']} ({player.get('nationality', 'N/A')}) - {player.get('position', 'N/A')}")
-            if len(players) > 10:
-                print(f"  ... i {len(players) - 10} więcej")
-        else:
-            # Zapisz kluby
-            print("\nZapisywanie klubów do bazy...")
             for club in clubs:
-                try:
-                    existing = db.get_club_by_tm_id(club.transfermarkt_id)
-                    if existing:
-                        stats['clubs_updated'] += 1
-                    else:
-                        db.upsert_club(club)
-                        stats['clubs_added'] += 1
-                except Exception as e:
-                    print(f"Błąd zapisywania klubu {club.name}: {e}")
-                    stats['errors'] += 1
+                # Zapisz/odczytaj klub
+                if not args.dry_run:
+                    if club.transfermarkt_id not in club_id_cache:
+                        existing = db.get_club_by_tm_id(club.transfermarkt_id)
+                        if existing:
+                            club_id_cache[club.transfermarkt_id] = existing['id']
+                            stats['clubs_updated'] += 1
+                        else:
+                            club_id = db.upsert_club(asdict(club))
+                            if club_id:
+                                club_id_cache[club.transfermarkt_id] = club_id
+                                stats['clubs_added'] += 1
 
-            # Zapisz zawodników
-            print(f"Zapisywanie {len(players)} zawodników do bazy...")
-            for i, player_data in enumerate(players):
-                try:
-                    club = player_data.pop('club', None)
-                    club_id = None
+                club_db_id = club_id_cache.get(club.transfermarkt_id) if not args.dry_run else None
 
-                    if club:
-                        db_club = db.get_club_by_tm_id(club.transfermarkt_id)
-                        if db_club:
-                            club_id = db_club['id']
+                # Pobierz skład na ten sezon
+                players = scraper.get_team_squad_for_season(club, season)
+                print(f"  {club.name}: {len(players)} zawodników")
 
-                    # Usuń niepotrzebne pola
-                    player_data.pop('player_url', None)
-                    player_data.pop('season', None)
-                    player_data.pop('first_seen_season', None)
+                for player_data in players:
+                    try:
+                        player_data.pop('season', None)
+                        player_url = player_data.pop('player_url', None)
+                        tm_id = player_data.get('transfermarkt_id')
 
-                    existing = db.get_player_by_tm_id(player_data.get('transfermarkt_id'))
-                    if existing:
-                        stats['players_updated'] += 1
-                    else:
-                        db.upsert_player(player_data, club_id)
-                        stats['players_added'] += 1
+                        if args.dry_run:
+                            stats['players_added'] += 1
+                            continue
 
-                    if (i + 1) % 100 == 0:
-                        print(f"  Zapisano {i + 1}/{len(players)} zawodników...")
+                        # Dla bieżącego sezonu (ostatni) ustaw current_club_id
+                        if season == args.end_season and club_db_id:
+                            player_data['current_club_id'] = club_db_id
 
-                except Exception as e:
-                    print(f"Błąd zapisywania zawodnika {player_data.get('name', 'N/A')}: {e}")
-                    stats['errors'] += 1
+                        existing = db.get_player_by_tm_id(tm_id)
+                        if existing:
+                            player_id = existing['id']
+                            stats['players_updated'] += 1
+                            # Aktualizuj current_club_id jeśli to ostatni sezon
+                            if season == args.end_season and club_db_id:
+                                db.client.table('players').update(
+                                    {'current_club_id': club_db_id}
+                                ).eq('id', player_id).execute()
+                        else:
+                            player_id = db.upsert_player(player_data)
+                            if player_id:
+                                stats['players_added'] += 1
+
+                        # Dodaj wpis kariery dla tego sezonu w Ekstraklasie
+                        if player_id and club_db_id:
+                            db.add_career_entry({
+                                'player_id': player_id,
+                                'club_id': club_db_id,
+                                'club_name': club.name,
+                                'league': 'Ekstraklasa',
+                                'season_start': season,
+                                'season_end': season + 1,
+                                'appearances': 0,
+                                'goals': 0,
+                            })
+                            stats['career_entries'] += 1
+
+                    except Exception as e:
+                        print(f"    Błąd: {player_data.get('name', '?')}: {e}")
+                        stats['errors'] += 1
+
+            print(f"\n  Podsumowanie po sezonie {season}/{season+1}:")
+            print(f"  Kluby w cache: {len(club_id_cache)}")
+            if not args.dry_run:
+                total = db.client.table('players').select('count', count='exact').execute()
+                print(f"  Zawodnicy w bazie: {total.count}")
 
     except KeyboardInterrupt:
         print("\n\nPrzerwano przez użytkownika!")
@@ -164,7 +174,6 @@ def main():
         traceback.print_exc()
         stats['errors'] += 1
 
-    # Podsumowanie końcowe
     print("\n" + "=" * 60)
     print("STATYSTYKI KOŃCOWE")
     print("=" * 60)
@@ -172,6 +181,7 @@ def main():
     print(f"Kluby zaktualizowane: {stats['clubs_updated']}")
     print(f"Zawodnicy dodani: {stats['players_added']}")
     print(f"Zawodnicy zaktualizowani: {stats['players_updated']}")
+    print(f"Wpisy kariery: {stats['career_entries']}")
     print(f"Błędy: {stats['errors']}")
     print(f"Koniec: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)

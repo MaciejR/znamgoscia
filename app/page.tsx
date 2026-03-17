@@ -6,7 +6,7 @@ export default function Home() {
       {/* Hero section */}
       <section className="text-center py-8 px-4">
         <p className="text-lg text-slate-600 dark:text-slate-400 max-w-md mx-auto">
-          Codzienny quiz piłkarski. Zgadnij zawodnika Ekstraklasy w 8 próbach!
+          Codzienny quiz piłkarski. Zgadnij zawodnika polskiej ligi!
         </p>
       </section>
 

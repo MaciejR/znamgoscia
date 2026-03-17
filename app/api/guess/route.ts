@@ -6,14 +6,13 @@ import { Player, CareerEntry } from '@/lib/types'
 interface GuessRequestBody {
   date: string
   guessedPlayerId: number
-  isLastGuess?: boolean
 }
 
 // POST /api/guess - sprawdź odpowiedź
 export async function POST(request: NextRequest) {
   try {
     const body: GuessRequestBody = await request.json()
-    const { date, guessedPlayerId, isLastGuess } = body
+    const { date, guessedPlayerId } = body
 
     if (!date || !guessedPlayerId) {
       return NextResponse.json(
@@ -67,11 +66,6 @@ export async function POST(request: NextRequest) {
       guessCareer,
       answerCareer
     )
-
-    // Jeśli to ostatni strzał i niepoprawny, dodaj odpowiedź
-    if (isLastGuess && !result.correct) {
-      result.answer = answerPlayer
-    }
 
     return NextResponse.json(result)
 
@@ -133,11 +127,11 @@ async function fetchPlayerWithClub(playerId: number): Promise<{ player: Player |
   }
 }
 
-// Pomocnicza funkcja do pobierania historii kariery
+// Pomocnicza funkcja do pobierania historii kariery (kolumna league bezpośrednio w tabeli)
 async function fetchCareerHistory(playerId: number): Promise<CareerEntry[]> {
   const { data, error } = await supabase
     .from('career_history')
-    .select('*')
+    .select('id, player_id, club_id, club_name, league, season_start, season_end, appearances, goals')
     .eq('player_id', playerId)
     .order('season_start', { ascending: false })
 

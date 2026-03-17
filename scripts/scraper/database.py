@@ -88,20 +88,33 @@ class DatabaseManager:
 
     def add_career_entry(self, career_data: Dict[str, Any]) -> bool:
         """
-        Dodaje wpis w historii kariery.
+        Dodaje wpis w historii kariery. Jeśli wpis istnieje i nie ma ligi, aktualizuje ją.
+        Obsługuje wpisy z club_name=None (np. z leistungsdaten – tylko info o lidze).
         """
         try:
-            # Sprawdź czy wpis już istnieje
-            existing = self.client.table('career_history').select('id').eq(
-                'player_id', career_data.get('player_id')
-            ).eq(
-                'club_name', career_data.get('club_name')
-            ).eq(
-                'season_start', career_data.get('season_start')
-            ).execute()
+            club_name = career_data.get('club_name')
+            season_start = career_data.get('season_start')
+            player_id = career_data.get('player_id')
+
+            query = self.client.table('career_history').select('id, league').eq('player_id', player_id)
+
+            if club_name is None:
+                # Duplikat szukamy po player_id + league (nie ma club_name)
+                league = career_data.get('league')
+                if not league:
+                    return True  # Nic sensownego do zapisania
+                existing = query.is_('club_name', 'null').eq('league', league).execute()
+            else:
+                existing = query.eq('club_name', club_name).eq('season_start', season_start).execute()
 
             if not existing.data:
+                insert_data = {k: v for k, v in career_data.items() if v is not None or k not in ('club_name',)}
                 self.client.table('career_history').insert(career_data).execute()
+            elif career_data.get('league') and not existing.data[0].get('league'):
+                # Uzupełnij brakującą ligę dla istniejącego wpisu
+                self.client.table('career_history').update(
+                    {'league': career_data['league']}
+                ).eq('id', existing.data[0]['id']).execute()
 
             return True
         except Exception as e:
@@ -183,6 +196,20 @@ class DatabaseManager:
         except Exception as e:
             print(f"Error setting daily player: {e}")
             return False
+
+    def get_club_by_tm_id(self, tm_id: str) -> Optional[Dict[str, Any]]:
+        """Pobiera klub po ID Transfermarkt"""
+        if not tm_id:
+            return None
+        result = self.client.table('clubs').select('*').eq('transfermarkt_id', tm_id).execute()
+        return result.data[0] if result.data else None
+
+    def get_player_by_tm_id(self, tm_id: str) -> Optional[Dict[str, Any]]:
+        """Pobiera zawodnika po ID Transfermarkt"""
+        if not tm_id:
+            return None
+        result = self.client.table('players').select('id, transfermarkt_id').eq('transfermarkt_id', tm_id).execute()
+        return result.data[0] if result.data else None
 
     def get_daily_player(self, for_date: Optional[date] = None) -> Optional[Dict[str, Any]]:
         """
