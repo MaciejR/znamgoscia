@@ -86,30 +86,54 @@ class DatabaseManager:
             print(f"Error upserting player: {e}")
             return None
 
+    # Cache: whether the 'league' column exists in career_history (None = unknown)
+    _league_col_exists: bool | None = None
+
+    def _has_league_column(self) -> bool:
+        """Check once whether career_history.league column exists."""
+        if self.__class__._league_col_exists is None:
+            try:
+                self.client.table('career_history').select('league').limit(1).execute()
+                self.__class__._league_col_exists = True
+            except Exception:
+                self.__class__._league_col_exists = False
+        return self.__class__._league_col_exists
+
     def add_career_entry(self, career_data: Dict[str, Any]) -> bool:
         """
         Dodaje wpis w historii kariery. Jeśli wpis istnieje i nie ma ligi, aktualizuje ją.
         Obsługuje wpisy z club_name=None (np. z leistungsdaten – tylko info o lidze).
+        Gracefully handles missing 'league' column (migration 003 not yet applied).
         """
         try:
             club_name = career_data.get('club_name')
             season_start = career_data.get('season_start')
             player_id = career_data.get('player_id')
 
-            query = self.client.table('career_history').select('id, league').eq('player_id', player_id)
+            has_league = self._has_league_column()
+
+            # Strip league from data if column doesn't exist yet
+            if not has_league:
+                career_data = {k: v for k, v in career_data.items() if k != 'league'}
+
+            select_cols = 'id, league' if has_league else 'id'
+            query = self.client.table('career_history').select(select_cols).eq('player_id', player_id)
 
             if club_name is None:
                 # Duplikat szukamy po player_id + league (nie ma club_name)
                 league = career_data.get('league')
-                if not league:
+                if not league and has_league:
                     return True  # Nic sensownego do zapisania
-                existing = query.is_('club_name', 'null').eq('league', league).execute()
+                if has_league:
+                    existing = query.is_('club_name', 'null').eq('league', league).execute()
+                else:
+                    return True  # Without league column, can't deduplicate league-only entries
             else:
                 existing = query.eq('club_name', club_name).eq('season_start', season_start).execute()
 
             if not existing.data:
                 self.client.table('career_history').insert(career_data).execute()
-            elif career_data.get('league') and not existing.data[0].get('league'):
+            elif has_league and career_data.get('league') and not existing.data[0].get('league'):
                 # Uzupełnij brakującą ligę dla istniejącego wpisu
                 self.client.table('career_history').update(
                     {'league': career_data['league']}
