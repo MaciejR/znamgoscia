@@ -1,0 +1,27 @@
+{
+  "name": "Ekstra Typ – Polska Liga Guess",
+  "short_name": "Ekstra Typ",
+  "description": "Codzienny quiz piłkarski – zgadnij zawodnika Ekstraklasy!",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#00843d",
+  "lang": "pl",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["games", "sports"],
+  "screenshots": []
+}

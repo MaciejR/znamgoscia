@@ -27,6 +27,12 @@ export const metadata: Metadata = {
   },
   viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
   themeColor: '#00843d',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Ekstra Typ',
+  },
 }
 
 export default function RootLayout({
