@@ -41,8 +41,8 @@ export interface CareerEntry {
   id: number
   player_id: number
   club_id: number | null
-  club_name: string
-  league?: string | null // pobierane przez join z clubs
+  club_name: string | null
+  league?: string | null
   season_start: number
   season_end: number | null
   appearances: number
@@ -67,7 +67,7 @@ export interface Hint {
   direction?: 'higher' | 'lower'
 }
 
-// Wynik porównania – 6 atrybutów wg spec
+// Wynik porównania – 7 atrybutów
 export interface GuessResult {
   correct: boolean
   guessedPlayer: Player
@@ -79,6 +79,7 @@ export interface GuessResult {
     position_detailed: Hint // Dokładna rola
     club_history: Hint      // Historia klubów (wspólny klub ✓/✗)
     league_history: Hint    // Historia lig (wspólna liga ✓/✗)
+    age: Hint               // Wiek (exact=correct, ±3=close z kierunkiem, dalej=wrong)
   }
   answer?: Player // tylko jeśli correct=true
   isHint?: boolean // czy wpis pochodzi z przycisku Podpowiedź

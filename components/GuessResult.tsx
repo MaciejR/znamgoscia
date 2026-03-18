@@ -42,6 +42,11 @@ const ATTRIBUTE_DEFS = [
     label: 'Historia lig',
     tooltip: 'Czy szukany zawodnik grał w którychkolwiek z lig typowanego gracza',
   },
+  {
+    key: 'age' as const,
+    label: 'Wiek',
+    tooltip: 'Zielony = trafiony, żółty = różnica ≤3 lata, czerwony = dalej. Strzałka ↑↓ wskazuje kierunek.',
+  },
 ]
 
 export default function GuessResult({ result, isLast }: GuessResultProps) {
@@ -135,21 +140,24 @@ export default function GuessResult({ result, isLast }: GuessResultProps) {
 interface AttributeCellProps {
   label: string
   tooltip: string
-  hint: { status: string; value: string | number }
+  hint: { status: string; value: string | number; direction?: 'higher' | 'lower' }
 }
 
 function AttributeCell({ label, tooltip, hint }: AttributeCellProps) {
   const [showTooltip, setShowTooltip] = useState(false)
   const isCorrect = hint.status === 'correct'
+  const isClose = hint.status === 'close'
+
+  const borderBg = isCorrect
+    ? 'border-correct/30 bg-correct/10'
+    : isClose
+    ? 'border-close/30 bg-close/10'
+    : 'border-wrong/30 bg-wrong/10'
+
+  const directionArrow = hint.direction === 'higher' ? '↑' : hint.direction === 'lower' ? '↓' : null
 
   return (
-    <div
-      className={`relative rounded-lg p-2.5 border ${
-        isCorrect
-          ? 'border-correct/30 bg-correct/10'
-          : 'border-wrong/30 bg-wrong/10'
-      }`}
-    >
+    <div className={`relative rounded-lg p-2.5 border ${borderBg}`}>
       {/* Nagłówek atrybutu */}
       <div className="flex items-center justify-between mb-1">
         <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">{label}</span>
@@ -164,15 +172,22 @@ function AttributeCell({ label, tooltip, hint }: AttributeCellProps) {
           </button>
           {isCorrect ? (
             <Check className="w-4 h-4 text-correct flex-shrink-0" />
+          ) : isClose ? (
+            <span className="text-close font-bold text-sm flex-shrink-0">~</span>
           ) : (
             <X className="w-4 h-4 text-wrong flex-shrink-0" />
           )}
         </div>
       </div>
 
-      {/* Wartość */}
-      <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+      {/* Wartość + strzałka kierunku */}
+      <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate flex items-center gap-1">
         {String(hint.value) || '–'}
+        {directionArrow && (
+          <span className={`font-bold ${isClose ? 'text-close' : 'text-wrong'}`}>
+            {directionArrow}
+          </span>
+        )}
       </div>
 
       {/* Tooltip */}
