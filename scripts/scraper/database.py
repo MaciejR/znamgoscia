@@ -108,7 +108,6 @@ class DatabaseManager:
                 existing = query.eq('club_name', club_name).eq('season_start', season_start).execute()
 
             if not existing.data:
-                insert_data = {k: v for k, v in career_data.items() if v is not None or k not in ('club_name',)}
                 self.client.table('career_history').insert(career_data).execute()
             elif career_data.get('league') and not existing.data[0].get('league'):
                 # Uzupełnij brakującą ligę dla istniejącego wpisu
@@ -131,37 +130,65 @@ class DatabaseManager:
         result = self.client.table('players').select('*').eq('is_active', True).execute()
         return result.data or []
 
-    def get_random_player_for_daily(self, exclude_days: int = 30) -> Optional[Dict[str, Any]]:
+    def get_random_player_for_daily(
+        self,
+        exclude_days: int = 30,
+        min_appearances: Optional[int] = None,
+    ) -> Optional[Dict[str, Any]]:
         """
         Pobiera losowego zawodnika, który nie był w ostatnich N dniach.
+        min_appearances – minimalna łączna liczba występów w karierze (None = brak filtru).
+        Domyślną wartość można ustawić przez zmienną środowiskową MIN_DAILY_APPEARANCES.
         """
+        import random
+
+        if min_appearances is None:
+            env_val = os.environ.get('MIN_DAILY_APPEARANCES')
+            min_appearances = int(env_val) if env_val and env_val.isdigit() else 10
+
         try:
             # Pobierz ID zawodników z ostatnich dni
             recent = self.client.table('daily_players').select('player_id').order(
                 'date', desc=True
             ).limit(exclude_days).execute()
 
-            recent_ids = [r['player_id'] for r in (recent.data or [])]
+            recent_ids = {r['player_id'] for r in (recent.data or [])}
 
-            # Pobierz losowego zawodnika
-            query = self.client.table('players').select('*').eq('is_active', True)
+            # Pobierz wszystkich aktywnych zawodników
+            all_players = self.client.table('players').select('*').eq('is_active', True).execute().data or []
 
-            if recent_ids:
-                # Supabase nie ma not in, więc filtrujemy po stronie klienta
-                all_players = query.execute()
-                available = [p for p in (all_players.data or []) if p['id'] not in recent_ids]
-            else:
-                available = query.execute().data or []
+            # Odfiltruj tych, którzy byli niedawno
+            available = [p for p in all_players if p['id'] not in recent_ids]
+
+            # Filtruj po minimalnej liczbie występów (tylko gdy próg > 0)
+            if min_appearances > 0 and available:
+                player_ids = [p['id'] for p in available]
+                career_rows = self.client.table('career_history').select(
+                    'player_id, appearances'
+                ).in_('player_id', player_ids).execute().data or []
+
+                appearances_by_player: Dict[int, int] = {}
+                for row in career_rows:
+                    pid = row['player_id']
+                    apps = row.get('appearances') or 0
+                    appearances_by_player[pid] = appearances_by_player.get(pid, 0) + apps
+
+                eligible = [
+                    p for p in available
+                    if appearances_by_player.get(p['id'], 0) >= min_appearances
+                ]
+
+                # Fallback: jeśli filtr wyklucza wszystkich, ignoruj próg
+                if eligible:
+                    available = eligible
+                else:
+                    print(f"Warning: no players meet min_appearances={min_appearances}, ignoring filter")
 
             if not available:
-                # Jeśli wszyscy byli ostatnio, wybierz kogokolwiek
-                available = self.client.table('players').select('*').eq('is_active', True).execute().data or []
+                # Ostateczny fallback: dowolny aktywny zawodnik
+                available = all_players
 
-            if available:
-                import random
-                return random.choice(available)
-
-            return None
+            return random.choice(available) if available else None
 
         except Exception as e:
             print(f"Error getting random player: {e}")
