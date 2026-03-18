@@ -127,7 +127,7 @@ export default function GuessInput({ onGuess, disabled }: GuessInputProps) {
       {isOpen && results.length > 0 && (
         <div
           ref={dropdownRef}
-          className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg overflow-hidden"
+          className="absolute z-50 w-full bottom-full mb-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg overflow-hidden"
         >
           {results.map((player, index) => (
             <button
@@ -185,7 +185,7 @@ export default function GuessInput({ onGuess, disabled }: GuessInputProps) {
 
       {/* Brak wyników */}
       {isOpen && query.length >= 2 && results.length === 0 && !isLoading && (
-        <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg p-4 text-center text-slate-500 dark:text-slate-400">
+        <div className="absolute z-50 w-full bottom-full mb-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg p-4 text-center text-slate-500 dark:text-slate-400">
           Nie znaleziono zawodnika
         </div>
       )}
