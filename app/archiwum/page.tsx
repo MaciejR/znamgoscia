@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Trophy, X, Loader2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Trophy, X, Loader2, Play } from 'lucide-react'
 import Link from 'next/link'
 import { Player } from '@/lib/types'
 import { getFlagEmoji } from '@/lib/utils'
@@ -256,6 +256,13 @@ export default function ArchiwumPage() {
                     {selectedDay.won ? 'Wygrana!' : 'Przegrana'}
                   </div>
                 )}
+                <Link
+                  href={`/cwiczenia/${selectedDay.date}`}
+                  className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 bg-ekstra-green text-white text-sm rounded-lg hover:bg-ekstra-green/90 transition-colors"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  Zagraj
+                </Link>
               </div>
             </div>
           ) : (

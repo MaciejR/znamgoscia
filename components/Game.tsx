@@ -23,7 +23,12 @@ import ShareButton from './ShareButton'
 import StatsModal from './StatsModal'
 import { Loader2, RefreshCw, BarChart3 } from 'lucide-react'
 
-export default function Game() {
+interface GameProps {
+  practiceDate?: string
+}
+
+export default function Game({ practiceDate }: GameProps = {}) {
+  const isPractice = !!practiceDate
   const [gameState, setGameState] = useState<GameState | null>(null)
   const [userStats, setUserStats] = useState<UserStats>(createDefaultStats())
   const [isLoading, setIsLoading] = useState(true)
@@ -36,7 +41,8 @@ export default function Game() {
 
   useEffect(() => {
     initGame()
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [practiceDate])
 
   // Nasłuchuj na przycisk statystyk w headerze
   useEffect(() => {
@@ -48,44 +54,64 @@ export default function Game() {
     }
   }, [])
 
+  const practiceStateKey = practiceDate ? `ekstra-typ-practice-${practiceDate}` : null
+
   const initGame = async () => {
     setIsLoading(true)
     setError(null)
+    setAnswerPlayer(null)
 
     try {
-      const today = getTodayDate()
+      const date = practiceDate ?? getTodayDate()
 
-      // Wczytaj stan gry z localStorage
-      const savedState = loadGameState() as GameState | null
-      const savedStats = loadUserStats() as UserStats | null
-      if (savedStats) setUserStats(savedStats)
-
-      if (savedState && savedState.date === today) {
-        setGameState(savedState)
-        if (savedState.status === 'won') {
-          const lastGuess = savedState.guesses[savedState.guesses.length - 1]
-          if (lastGuess?.answer) setAnswerPlayer(lastGuess.answer)
+      if (isPractice) {
+        // Practice mode: load from separate key, don't load user stats
+        const raw = typeof window !== 'undefined' ? localStorage.getItem(practiceStateKey!) : null
+        const savedState = raw ? JSON.parse(raw) as GameState : null
+        if (savedState && savedState.date === date) {
+          setGameState(savedState)
+          if (savedState.status === 'won') {
+            const lastGuess = savedState.guesses[savedState.guesses.length - 1]
+            if (lastGuess?.answer) setAnswerPlayer(lastGuess.answer)
+          }
+        } else {
+          const newState = createNewGameState(date)
+          setGameState(newState)
+          localStorage.setItem(practiceStateKey!, JSON.stringify(newState))
         }
       } else {
-        const newState = createNewGameState(today)
-        setGameState(newState)
-        saveGameState(newState)
+        // Normal daily mode
+        const savedState = loadGameState() as GameState | null
+        const savedStats = loadUserStats() as UserStats | null
+        if (savedStats) setUserStats(savedStats)
+
+        if (savedState && savedState.date === date) {
+          setGameState(savedState)
+          if (savedState.status === 'won') {
+            const lastGuess = savedState.guesses[savedState.guesses.length - 1]
+            if (lastGuess?.answer) setAnswerPlayer(lastGuess.answer)
+          }
+        } else {
+          const newState = createNewGameState(date)
+          setGameState(newState)
+          saveGameState(newState)
+        }
+
+        // Pobierz statystyki dzienne (średnia prób)
+        try {
+          const statsRes = await fetch(`/api/stats?date=${date}`)
+          if (statsRes.ok) {
+            const statsData = await statsRes.json()
+            if (statsData.avgGuesses > 0) setAvgGuesses(statsData.avgGuesses)
+          }
+        } catch { /* ignoruj */ }
       }
 
-      // Pobierz statystyki dzienne (średnia prób)
-      try {
-        const statsRes = await fetch(`/api/stats?date=${today}`)
-        if (statsRes.ok) {
-          const statsData = await statsRes.json()
-          if (statsData.avgGuesses > 0) setAvgGuesses(statsData.avgGuesses)
-        }
-      } catch { /* ignoruj */ }
-
       // Sprawdź czy zawodnik jest dostępny
-      const response = await fetch(`/api/daily?date=${today}`)
+      const response = await fetch(`/api/daily?date=${date}`)
       const data = await response.json()
       if (!data.playerExists) {
-        setError('Dzisiejszy zawodnik nie został jeszcze wybrany. Spróbuj później!')
+        setError('Zawodnik dla tego dnia nie jest dostępny.')
       }
     } catch (err) {
       console.error('Error initializing game:', err)
@@ -119,27 +145,33 @@ export default function Game() {
       newState = checkGameEnd(newState)
 
       setGameState(newState)
-      saveGameState(newState)
+      if (isPractice) {
+        localStorage.setItem(practiceStateKey!, JSON.stringify(newState))
+      } else {
+        saveGameState(newState)
+      }
 
       if (newState.status === 'won') {
         if (result.answer) setAnswerPlayer(result.answer)
 
-        const newStats = updateStats(userStats, true, newGuesses.length)
-        setUserStats(newStats)
-        saveUserStats(newStats)
+        if (!isPractice) {
+          const newStats = updateStats(userStats, true, newGuesses.length)
+          setUserStats(newStats)
+          saveUserStats(newStats)
 
-        try {
-          await fetch('/api/stats', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              date: gameState.date,
-              guesses_count: newGuesses.length,
-              won: true,
-              session_id: getSessionId(),
-            }),
-          })
-        } catch { /* ignoruj */ }
+          try {
+            await fetch('/api/stats', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                date: gameState.date,
+                guesses_count: newGuesses.length,
+                won: true,
+                session_id: getSessionId(),
+              }),
+            })
+          } catch { /* ignoruj */ }
+        }
       }
     } catch (err) {
       console.error('Error making guess:', err)
@@ -186,7 +218,11 @@ export default function Game() {
       const newGuesses = [...gameState.guesses, result]
       const newState: GameState = { ...gameState, guesses: newGuesses }
       setGameState(newState)
-      saveGameState(newState)
+      if (isPractice) {
+        localStorage.setItem(practiceStateKey!, JSON.stringify(newState))
+      } else {
+        saveGameState(newState)
+      }
     } catch (err) {
       console.error('Error getting hint:', err)
       setError('Nie udało się pobrać podpowiedzi.')
@@ -226,14 +262,23 @@ export default function Game() {
 
   return (
     <div className="w-full max-w-2xl mx-auto px-4 pb-32">
+      {/* Baner trybu ćwiczeniowego */}
+      {isPractice && (
+        <div className="mb-4 mt-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl text-sm text-amber-700 dark:text-amber-400 text-center">
+          Tryb ćwiczeniowy — {new Date(practiceDate! + 'T00:00:00').toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })}. Wyniki nie są zapisywane.
+        </div>
+      )}
+
       {/* Panel statystyk dziennych */}
-      <div className="flex gap-3 mb-6 mt-2">
-        <StatTile label="Twoje próby" value={guessCount} />
-        <StatTile
-          label="Śr. do wygranej"
-          value={avgGuesses !== null ? avgGuesses.toFixed(1) : '—'}
-        />
-      </div>
+      {!isPractice && (
+        <div className="flex gap-3 mb-6 mt-2">
+          <StatTile label="Twoje próby" value={guessCount} />
+          <StatTile
+            label="Śr. do wygranej"
+            value={avgGuesses !== null ? avgGuesses.toFixed(1) : '—'}
+          />
+        </div>
+      )}
 
       {/* Legenda (tylko przed pierwszą próbą) */}
       {isPlaying && guessCount === 0 && (
@@ -298,6 +343,7 @@ export default function Game() {
         stats={userStats}
         isOpen={showStats}
         onClose={() => setShowStats(false)}
+        todayGuesses={gameState.status === 'won' ? gameState.guesses.length : undefined}
       />
 
       {/* Stały pasek na dole */}
