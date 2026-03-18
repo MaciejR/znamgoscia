@@ -1,7 +1,7 @@
 import { Player, CareerEntry, GuessResult, HintStatus, Hint, GameState, UserStats } from './types'
 import { getTodayDate } from './utils'
 
-// Porównaj strzał z odpowiedzią – 6 atrybutów wg spec
+// Porównaj strzał z odpowiedzią – 7 atrybutów
 export function compareGuess(
   guess: Player,
   answer: Player,
@@ -22,10 +22,11 @@ export function compareGuess(
   )
   const clubHistoryHint = compareHistoryClubs(guessCareer, answerCareer)
   const leagueHistoryHint = compareHistoryLeagues(guessCareer, answerCareer)
+  const ageHint = compareAge(guess.age, answer.age)
 
-  const allHints = [nationalityHint, careerStatusHint, positionHint, positionDetailedHint, clubHistoryHint, leagueHistoryHint]
+  const allHints = [nationalityHint, careerStatusHint, positionHint, positionDetailedHint, clubHistoryHint, leagueHistoryHint, ageHint]
   const matchCount = allHints.filter(h => h.status === 'correct').length
-  const matchPercentage = isCorrect ? 100 : Math.round((matchCount / 6) * 100)
+  const matchPercentage = isCorrect ? 100 : Math.round((matchCount / 7) * 100)
 
   return {
     correct: isCorrect,
@@ -38,6 +39,7 @@ export function compareGuess(
       position_detailed: positionDetailedHint,
       club_history: clubHistoryHint,
       league_history: leagueHistoryHint,
+      age: ageHint,
     },
     answer: isCorrect ? answer : undefined,
   }
@@ -52,6 +54,29 @@ function compareField(guessValue: string, answerValue: string): Hint {
   return {
     status: isCorrect ? 'correct' : 'wrong',
     value: guessValue || '-',
+  }
+}
+
+// Porównaj wiek: exact=correct, różnica ≤3=close z kierunkiem, >3=wrong
+function compareAge(guessAge: number | null, answerAge: number | null): Hint {
+  if (guessAge == null || answerAge == null) {
+    return { status: 'wrong', value: guessAge != null ? String(guessAge) : '?' }
+  }
+  const diff = guessAge - answerAge
+  if (diff === 0) {
+    return { status: 'correct', value: guessAge }
+  }
+  if (Math.abs(diff) <= 3) {
+    return {
+      status: 'close',
+      value: guessAge,
+      direction: diff > 0 ? 'lower' : 'higher', // answer is lower/higher than guess
+    }
+  }
+  return {
+    status: 'wrong',
+    value: guessAge,
+    direction: diff > 0 ? 'lower' : 'higher',
   }
 }
 
@@ -107,6 +132,8 @@ export function scorePlayerMatch(
     answerCareer.map(c => c.league?.toLowerCase()).filter((l): l is string => Boolean(l))
   )
   if (candidateLeagues.size > 0 && Array.from(candidateLeagues).some(l => answerLeagues.has(l))) score++
+
+  if (candidate.age != null && answer.age != null && Math.abs(candidate.age - answer.age) <= 3) score++
 
   return score
 }
