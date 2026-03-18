@@ -298,6 +298,7 @@ export default function Game() {
         stats={userStats}
         isOpen={showStats}
         onClose={() => setShowStats(false)}
+        todayGuesses={gameState.status === 'won' ? gameState.guesses.length : undefined}
       />
 
       {/* Stały pasek na dole */}
