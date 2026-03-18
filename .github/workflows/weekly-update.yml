@@ -9,6 +9,7 @@ on:
 jobs:
   update-database:
     runs-on: ubuntu-latest
+    environment: Preview
     timeout-minutes: 60 # Scraping może trwać długo
 
     steps:

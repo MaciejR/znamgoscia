@@ -9,6 +9,7 @@ on:
 jobs:
   select-daily-player:
     runs-on: ubuntu-latest
+    environment: Preview
 
     steps:
       - name: Checkout repository
