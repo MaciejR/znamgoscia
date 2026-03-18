@@ -10,9 +10,10 @@ interface StatsModalProps {
   stats: UserStats
   isOpen: boolean
   onClose: () => void
+  todayGuesses?: number
 }
 
-export default function StatsModal({ stats, isOpen, onClose }: StatsModalProps) {
+export default function StatsModal({ stats, isOpen, onClose, todayGuesses }: StatsModalProps) {
   const { user, profile } = useAuth()
 
   // Zamknij modalem Escape
@@ -99,27 +100,30 @@ export default function StatsModal({ stats, isOpen, onClose }: StatsModalProps) 
             Rozkład prób
           </h3>
           <div className="space-y-2">
-            {stats.guessDistribution.map((count, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <span className="w-4 text-sm text-slate-500 dark:text-slate-400">
-                  {index + 1}
-                </span>
-                <div className="flex-1 h-6 bg-slate-100 dark:bg-slate-700 rounded overflow-hidden">
-                  <div
-                    className="h-full bg-ekstra-green flex items-center justify-end px-2 transition-all"
-                    style={{
-                      width: `${Math.max((count / maxDistribution) * 100, count > 0 ? 10 : 0)}%`,
-                    }}
-                  >
-                    {count > 0 && (
-                      <span className="text-xs font-medium text-white">
-                        {count}
-                      </span>
-                    )}
+            {stats.guessDistribution.map((count, index) => {
+              const attemptNumber = index + 1
+              const isToday = todayGuesses === attemptNumber
+              const barWidth = Math.max((count / maxDistribution) * 100, count > 0 ? 8 : 0)
+              return (
+                <div key={index} className="flex items-center gap-2">
+                  <span className={`w-4 text-sm font-medium ${isToday ? 'text-ekstra-green dark:text-ekstra-green' : 'text-slate-500 dark:text-slate-400'}`}>
+                    {attemptNumber}
+                  </span>
+                  <div className="flex-1 h-6 bg-slate-100 dark:bg-slate-700 rounded overflow-hidden">
+                    <div
+                      className={`h-full flex items-center justify-end px-2 transition-all ${isToday ? 'bg-ekstra-green ring-2 ring-ekstra-green ring-offset-1' : 'bg-slate-400 dark:bg-slate-500'}`}
+                      style={{ width: `${barWidth}%` }}
+                    >
+                      {count > 0 && (
+                        <span className="text-xs font-bold text-white">
+                          {count}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 
