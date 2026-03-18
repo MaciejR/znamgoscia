@@ -120,11 +120,10 @@ def main():
                     stats['errors'] += 1
                     print(f"    ✗ {player_data.get('name')} - błąd zapisu")
 
-        # 3. Oznacz nieaktywnych zawodników
-        print("\n[3/3] Aktualizacja statusu zawodników...")
-        deactivated = db.mark_players_inactive(active_tm_ids)
-        stats['players_deactivated'] = deactivated
-        print(f"  Dezaktywowano {deactivated} zawodników")
+        # 3. (Krok pominięty) mark_players_inactive nie jest wywoływane,
+        # ponieważ historyczni zawodnicy Ekstraklasy są również dostępni jako
+        # zawodnicy dnia — nie dezaktywujemy ich przy cotygodniowym scrapingu.
+        print("\n[3/3] Pominięto dezaktywację — historyczni zawodnicy pozostają aktywni.")
 
     except KeyboardInterrupt:
         print("\n\nPrzerwano przez użytkownika")
