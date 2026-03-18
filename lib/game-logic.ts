@@ -1,10 +1,7 @@
 import { Player, CareerEntry, GuessResult, HintStatus, Hint, GameState, UserStats } from './types'
 import { getTodayDate } from './utils'
 
-const MAX_GUESSES = 8
-const AGE_CLOSE_THRESHOLD = 2 // ±2 lata
-
-// Porównaj strzał z odpowiedzią
+// Porównaj strzał z odpowiedzią – 6 atrybutów wg spec
 export function compareGuess(
   guess: Player,
   answer: Player,
@@ -13,16 +10,34 @@ export function compareGuess(
 ): GuessResult {
   const isCorrect = guess.id === answer.id
 
+  const nationalityHint = compareField(guess.nationality, answer.nationality)
+  const careerStatusHint = compareField(
+    guess.is_active ? 'Aktywny' : 'Zakończona',
+    answer.is_active ? 'Aktywny' : 'Zakończona'
+  )
+  const positionHint = compareField(guess.position, answer.position)
+  const positionDetailedHint = compareField(
+    guess.position_detailed || '',
+    answer.position_detailed || ''
+  )
+  const clubHistoryHint = compareHistoryClubs(guessCareer, answerCareer)
+  const leagueHistoryHint = compareHistoryLeagues(guessCareer, answerCareer)
+
+  const allHints = [nationalityHint, careerStatusHint, positionHint, positionDetailedHint, clubHistoryHint, leagueHistoryHint]
+  const matchCount = allHints.filter(h => h.status === 'correct').length
+  const matchPercentage = isCorrect ? 100 : Math.round((matchCount / 6) * 100)
+
   return {
     correct: isCorrect,
     guessedPlayer: guess,
+    matchPercentage,
     hints: {
-      nationality: compareField(guess.nationality, answer.nationality),
-      position: compareField(guess.position, answer.position),
-      club: compareField(guess.club_name || '', answer.club_name || ''),
-      league: compareField(guess.club_league || '', answer.club_league || ''),
-      age: compareAge(guess.age, answer.age),
-      commonClubs: findCommonClubs(guessCareer, answerCareer),
+      nationality: nationalityHint,
+      career_status: careerStatusHint,
+      position: positionHint,
+      position_detailed: positionDetailedHint,
+      club_history: clubHistoryHint,
+      league_history: leagueHistoryHint,
     },
     answer: isCorrect ? answer : undefined,
   }
@@ -30,105 +45,92 @@ export function compareGuess(
 
 // Porównaj pole tekstowe
 function compareField(guessValue: string, answerValue: string): Hint {
+  if (!guessValue && !answerValue) {
+    return { status: 'correct', value: '-' }
+  }
   const isCorrect = guessValue.toLowerCase() === answerValue.toLowerCase()
   return {
     status: isCorrect ? 'correct' : 'wrong',
-    value: guessValue,
+    value: guessValue || '-',
   }
 }
 
-// Porównaj wiek
-function compareAge(guessAge: number | null, answerAge: number | null): Hint {
-  if (guessAge === null || answerAge === null) {
-    return { status: 'wrong', value: guessAge || 0 }
-  }
-
-  const diff = guessAge - answerAge
-
-  if (diff === 0) {
-    return { status: 'correct', value: guessAge }
-  }
-
-  if (Math.abs(diff) <= AGE_CLOSE_THRESHOLD) {
-    return {
-      status: 'close',
-      value: guessAge,
-      direction: diff > 0 ? 'lower' : 'higher',
-    }
-  }
-
+// Sprawdź czy answer grał w którymś klubie z kariery guess
+function compareHistoryClubs(guessCareer: CareerEntry[], answerCareer: CareerEntry[]): Hint {
+  const guessClubs = new Set(guessCareer.map(c => c.club_name?.toLowerCase()).filter((c): c is string => Boolean(c)))
+  const answerClubs = new Set(answerCareer.map(c => c.club_name?.toLowerCase()).filter((c): c is string => Boolean(c)))
+  const hasCommon = guessClubs.size > 0 && answerClubs.size > 0 && Array.from(guessClubs).some(club => answerClubs.has(club))
   return {
-    status: 'wrong',
-    value: guessAge,
-    direction: diff > 0 ? 'lower' : 'higher',
+    status: hasCommon ? 'correct' : 'wrong',
+    value: hasCommon ? 'Tak' : 'Nie',
   }
 }
 
-// Znajdź wspólne kluby w historii kariery
-export function findCommonClubs(
-  guessCareer: CareerEntry[],
-  answerCareer: CareerEntry[]
-): string[] {
-  const guessClubs = new Set(guessCareer.map(c => c.club_name.toLowerCase()))
-  const answerClubs = new Set(answerCareer.map(c => c.club_name.toLowerCase()))
-
-  const common: string[] = []
-  Array.from(guessClubs).forEach(club => {
-    if (answerClubs.has(club)) {
-      // Znajdź oryginalną nazwę (z dużymi literami)
-      const original = guessCareer.find(c => c.club_name.toLowerCase() === club)
-      if (original) {
-        common.push(original.club_name)
-      }
-    }
-  })
-
-  return common
+// Sprawdź czy answer grał w której ś lidze z kariery guess
+function compareHistoryLeagues(guessCareer: CareerEntry[], answerCareer: CareerEntry[]): Hint {
+  const guessLeagues = new Set(
+    guessCareer.map(c => c.league?.toLowerCase()).filter((l): l is string => Boolean(l))
+  )
+  const answerLeagues = new Set(
+    answerCareer.map(c => c.league?.toLowerCase()).filter((l): l is string => Boolean(l))
+  )
+  const hasCommon = guessLeagues.size > 0 && answerLeagues.size > 0
+    && Array.from(guessLeagues).some(league => answerLeagues.has(league))
+  return {
+    status: hasCommon ? 'correct' : 'wrong',
+    value: hasCommon ? 'Tak' : 'Nie',
+  }
 }
 
-// Generuj tekst do udostępnienia
-export function generateShareText(guesses: GuessResult[], date: string, won: boolean): string {
-  const header = `Ekstra Typ - ${formatShareDate(date)}`
+// Oblicz wynik dopasowania zawodnika (do wyboru podpowiedzi)
+export function scorePlayerMatch(
+  candidate: Player,
+  answer: Player,
+  candidateCareer: CareerEntry[],
+  answerCareer: CareerEntry[]
+): number {
+  let score = 0
+  if (candidate.nationality === answer.nationality) score++
+  if (candidate.is_active === answer.is_active) score++
+  if (candidate.position === answer.position) score++
+  if (candidate.position_detailed && answer.position_detailed &&
+      candidate.position_detailed === answer.position_detailed) score++
 
-  const grid = guesses.map(guess => {
-    const row = [
-      getEmoji(guess.hints.nationality.status),
-      getEmoji(guess.hints.position.status),
-      getEmoji(guess.hints.club.status),
-      getEmoji(guess.hints.league.status),
-      getEmoji(guess.hints.age.status),
-    ].join('')
-    return row
-  }).join('\n')
+  const candidateClubs = new Set(candidateCareer.map(c => c.club_name?.toLowerCase()).filter((c): c is string => Boolean(c)))
+  const answerClubs = new Set(answerCareer.map(c => c.club_name?.toLowerCase()).filter((c): c is string => Boolean(c)))
+  if (candidateClubs.size > 0 && answerClubs.size > 0 && Array.from(candidateClubs).some(c => answerClubs.has(c))) score++
+
+  const candidateLeagues = new Set(
+    candidateCareer.map(c => c.league?.toLowerCase()).filter((l): l is string => Boolean(l))
+  )
+  const answerLeagues = new Set(
+    answerCareer.map(c => c.league?.toLowerCase()).filter((l): l is string => Boolean(l))
+  )
+  if (candidateLeagues.size > 0 && Array.from(candidateLeagues).some(l => answerLeagues.has(l))) score++
+
+  return score
+}
+
+// Generuj tekst do udostępnienia (wg spec)
+export function generateShareText(guesses: GuessResult[], date: string, won: boolean): string {
+  // Numer zagadki (dni od 2025-01-01)
+  const start = new Date('2025-01-01')
+  const current = new Date(date)
+  const puzzleNumber = Math.floor((current.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+
+  const grid = guesses.map((guess, i) => {
+    if (i === guesses.length - 1 && guess.correct) return '✅'
+    const pct = guess.matchPercentage
+    if (pct >= 61) return '🟩'
+    if (pct >= 31) return '🟨'
+    return '🟥'
+  }).join('')
 
   const result = won
-    ? `Zgadlem w ${guesses.length}/${MAX_GUESSES} prob!`
-    : `Nie udalo sie w ${MAX_GUESSES} probach`
+    ? `Zgadłem w ${guesses.length} ${guesses.length === 1 ? 'próbie' : 'próbach'}!`
+    : `Nie udało się odgadnąć...`
 
-  return `${header}\n\n${grid}\n\n${result}\nhttps://ekstra-typ.pl`
-}
-
-function formatShareDate(dateString: string): string {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('pl-PL', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  })
-}
-
-function getEmoji(status: HintStatus): string {
-  switch (status) {
-    case 'correct': return '🟩'
-    case 'close': return '🟨'
-    case 'wrong': return '🟥'
-  }
-}
-
-// Oblicz wynik punktowy
-export function calculateScore(guessCount: number, won: boolean): number {
-  if (!won) return 0
-  return Math.max(0, (MAX_GUESSES - guessCount + 1) * 100)
+  return `🇵🇱 Polska Liga Guess #${puzzleNumber}\n${grid}\n${result}\nekstraklasaguess.pl`
 }
 
 // Inicjalizuj nowy stan gry
@@ -137,24 +139,16 @@ export function createNewGameState(date?: string): GameState {
     date: date || getTodayDate(),
     guesses: [],
     status: 'playing',
-    maxGuesses: MAX_GUESSES,
   }
 }
 
 // Sprawdź czy gra się skończyła
 export function checkGameEnd(state: GameState): GameState {
   if (state.status !== 'playing') return state
-
   const lastGuess = state.guesses[state.guesses.length - 1]
-
   if (lastGuess?.correct) {
     return { ...state, status: 'won' }
   }
-
-  if (state.guesses.length >= MAX_GUESSES) {
-    return { ...state, status: 'lost' }
-  }
-
   return state
 }
 
@@ -165,7 +159,7 @@ export function createDefaultStats(): UserStats {
     gamesWon: 0,
     currentStreak: 0,
     maxStreak: 0,
-    guessDistribution: new Array(MAX_GUESSES).fill(0),
+    guessDistribution: new Array(10).fill(0),
   }
 }
 
@@ -176,18 +170,16 @@ export function updateStats(
   guessCount: number
 ): UserStats {
   const newStats = { ...currentStats }
-
   newStats.gamesPlayed += 1
 
   if (won) {
     newStats.gamesWon += 1
     newStats.currentStreak += 1
     newStats.maxStreak = Math.max(newStats.maxStreak, newStats.currentStreak)
-
-    // Aktualizuj rozkład (index = guessCount - 1)
-    if (guessCount >= 1 && guessCount <= MAX_GUESSES) {
+    const idx = Math.min(guessCount - 1, newStats.guessDistribution.length - 1)
+    if (idx >= 0) {
       newStats.guessDistribution = [...newStats.guessDistribution]
-      newStats.guessDistribution[guessCount - 1] += 1
+      newStats.guessDistribution[idx] += 1
     }
   } else {
     newStats.currentStreak = 0

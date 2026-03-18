@@ -42,6 +42,7 @@ export interface CareerEntry {
   player_id: number
   club_id: number | null
   club_name: string
+  league?: string | null // pobierane przez join z clubs
   season_start: number
   season_end: number | null
   appearances: number
@@ -63,33 +64,33 @@ export type HintStatus = 'correct' | 'wrong' | 'close'
 export interface Hint {
   status: HintStatus
   value: string | number
-  direction?: 'higher' | 'lower' // tylko dla wieku
+  direction?: 'higher' | 'lower'
 }
 
-// Wynik porównania
+// Wynik porównania – 6 atrybutów wg spec
 export interface GuessResult {
   correct: boolean
   guessedPlayer: Player
+  matchPercentage: number // 0–100
   hints: {
-    nationality: Hint
-    position: Hint
-    club: Hint
-    league: Hint
-    age: Hint
-    commonClubs: string[]
+    nationality: Hint       // Obywatelstwo
+    career_status: Hint     // Status kariery (Aktywny / Zakończona)
+    position: Hint          // Pozycja
+    position_detailed: Hint // Dokładna rola
+    club_history: Hint      // Historia klubów (wspólny klub ✓/✗)
+    league_history: Hint    // Historia lig (wspólna liga ✓/✗)
   }
-  answer?: Player // tylko jeśli correct=true lub koniec gry
-  isHint?: boolean // czy to wskazówka (nie strzał użytkownika)
+  answer?: Player // tylko jeśli correct=true
+  isHint?: boolean // czy wpis pochodzi z przycisku Podpowiedź
 }
 
 // Stan gry
-export type GameStatus = 'playing' | 'won' | 'lost'
+export type GameStatus = 'playing' | 'won'
 
 export interface GameState {
   date: string
   guesses: GuessResult[]
   status: GameStatus
-  maxGuesses: number
 }
 
 // Wynik wyszukiwania
@@ -103,13 +104,13 @@ export interface SearchResult {
   photo_url: string | null
 }
 
-// Statystyki użytkownika
+// Statystyki użytkownika (localStorage)
 export interface UserStats {
   gamesPlayed: number
   gamesWon: number
   currentStreak: number
   maxStreak: number
-  guessDistribution: number[] // [0] = 1 próba, [1] = 2 próby, etc.
+  guessDistribution: number[]
 }
 
 // Odpowiedź z API

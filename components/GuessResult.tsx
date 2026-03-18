@@ -1,137 +1,187 @@
 'use client'
 
-import { GuessResult as GuessResultType, HintStatus } from '@/lib/types'
+import { useState } from 'react'
+import { GuessResult as GuessResultType } from '@/lib/types'
 import { getFlagEmoji } from '@/lib/utils'
-import { ArrowUp, ArrowDown, HelpCircle } from 'lucide-react'
+import { ChevronDown, ChevronUp, HelpCircle, Check, X, Info } from 'lucide-react'
 import Image from 'next/image'
 
 interface GuessResultProps {
   result: GuessResultType
-  index: number
+  isLast: boolean
 }
 
-export default function GuessResult({ result, index }: GuessResultProps) {
-  const { guessedPlayer, hints } = result
+const ATTRIBUTE_DEFS = [
+  {
+    key: 'nationality' as const,
+    label: 'Obywatelstwo',
+    tooltip: 'Kraj/kraje, których paszport posiada zawodnik',
+  },
+  {
+    key: 'career_status' as const,
+    label: 'Status kariery',
+    tooltip: 'Aktywny – gra zawodowo; Zakończona – zakończył karierę',
+  },
+  {
+    key: 'position' as const,
+    label: 'Pozycja',
+    tooltip: 'Bramkarz / Obrońca / Pomocnik / Napastnik',
+  },
+  {
+    key: 'position_detailed' as const,
+    label: 'Dokładna rola',
+    tooltip: 'Np. Lewy obrońca, Środkowy pomocnik, Napastnik środkowy',
+  },
+  {
+    key: 'club_history' as const,
+    label: 'Historia klubów',
+    tooltip: 'Czy szukany zawodnik grał w którymkolwiek z klubów typowanego gracza',
+  },
+  {
+    key: 'league_history' as const,
+    label: 'Historia lig',
+    tooltip: 'Czy szukany zawodnik grał w którychkolwiek z lig typowanego gracza',
+  },
+]
+
+export default function GuessResult({ result, isLast }: GuessResultProps) {
+  const [expanded, setExpanded] = useState(isLast)
+  const { guessedPlayer, hints, matchPercentage } = result
+
+  const pctColor =
+    matchPercentage >= 100
+      ? 'bg-correct text-white'
+      : matchPercentage >= 61
+      ? 'bg-correct text-white'
+      : matchPercentage >= 31
+      ? 'bg-close text-black'
+      : 'bg-wrong text-white'
 
   return (
-    <div
-      className="animate-fade-in"
-      style={{ animationDelay: `${index * 50}ms` }}
-    >
-      <div className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
-        {/* Zdjęcie i imię */}
-        <div className="flex items-center gap-2 min-w-[140px] sm:min-w-[180px]">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-600 flex-shrink-0">
-            {guessedPlayer.photo_url ? (
-              <Image
-                src={guessedPlayer.photo_url}
-                alt={guessedPlayer.name}
-                width={40}
-                height={40}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">
-                ?
-              </div>
+    <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
+      {/* Header */}
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="w-full flex items-center gap-3 p-3 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+      >
+        {/* Procent */}
+        <div className={`w-14 h-14 rounded-lg flex-shrink-0 flex items-center justify-center font-bold text-lg ${pctColor}`}>
+          {matchPercentage}%
+        </div>
+
+        {/* Zdjęcie */}
+        <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-600 flex-shrink-0">
+          {guessedPlayer.photo_url ? (
+            <Image
+              src={guessedPlayer.photo_url}
+              alt={guessedPlayer.name}
+              width={40}
+              height={40}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs font-bold">
+              {guessedPlayer.name.slice(0, 1)}
+            </div>
+          )}
+        </div>
+
+        {/* Imię i flaga */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-slate-900 dark:text-white truncate">
+              {guessedPlayer.name}
+            </span>
+            <span className="text-base">{getFlagEmoji(guessedPlayer.nationality_code)}</span>
+            {result.isHint && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 flex items-center gap-1">
+                <HelpCircle className="w-3 h-3" />
+                Podpowiedź
+              </span>
             )}
           </div>
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate flex items-center gap-1">
-            {guessedPlayer.name}
-            {result.isHint && (
-              <HelpCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-            )}
-          </span>
+          {result.correct && (
+            <span className="text-xs text-correct font-medium">Poprawna odpowiedź!</span>
+          )}
         </div>
 
-        {/* Podpowiedzi */}
-        <div className="flex gap-1 sm:gap-1.5 flex-1 justify-end">
-          {/* Narodowość */}
-          <HintCell status={hints.nationality.status} title="Narodowość">
-            <span className="text-base sm:text-lg">
-              {getFlagEmoji(guessedPlayer.nationality_code)}
-            </span>
-          </HintCell>
+        {expanded ? (
+          <ChevronUp className="w-5 h-5 text-slate-400 flex-shrink-0" />
+        ) : (
+          <ChevronDown className="w-5 h-5 text-slate-400 flex-shrink-0" />
+        )}
+      </button>
 
-          {/* Pozycja */}
-          <HintCell status={hints.position.status} title="Pozycja">
-            <span className="text-xs font-medium">
-              {getPositionShort(guessedPlayer.position)}
-            </span>
-          </HintCell>
-
-          {/* Klub */}
-          <HintCell status={hints.club.status} title="Klub">
-            <span className="text-xs font-medium truncate max-w-[40px] sm:max-w-[60px]">
-              {guessedPlayer.club_short || guessedPlayer.club_name?.slice(0, 3) || '?'}
-            </span>
-          </HintCell>
-
-          {/* Liga */}
-          <HintCell status={hints.league.status} title="Liga">
-            <span className="text-xs font-medium">
-              {guessedPlayer.club_league === 'Ekstraklasa' ? 'EKL' : 'INN'}
-            </span>
-          </HintCell>
-
-          {/* Wiek */}
-          <HintCell status={hints.age.status} title="Wiek">
-            <div className="flex items-center gap-0.5">
-              <span className="text-xs font-medium">{hints.age.value}</span>
-              {hints.age.direction && (
-                hints.age.direction === 'higher' ? (
-                  <ArrowUp className="w-3 h-3" />
-                ) : (
-                  <ArrowDown className="w-3 h-3" />
-                )
-              )}
-            </div>
-          </HintCell>
-        </div>
-      </div>
-
-      {/* Wspólne kluby */}
-      {hints.commonClubs.length > 0 && (
-        <div className="mt-1 px-2 py-1 text-xs text-slate-500 dark:text-slate-400">
-          <span className="font-medium">Wspólne kluby:</span>{' '}
-          {hints.commonClubs.join(', ')}
+      {/* Rozwinięte atrybuty */}
+      {expanded && (
+        <div className="border-t border-slate-100 dark:border-slate-700 p-3 grid grid-cols-2 gap-2">
+          {ATTRIBUTE_DEFS.map(attr => {
+            const hint = hints[attr.key]
+            return (
+              <AttributeCell
+                key={attr.key}
+                label={attr.label}
+                tooltip={attr.tooltip}
+                hint={hint}
+              />
+            )
+          })}
         </div>
       )}
     </div>
   )
 }
 
-// Komponent pojedynczej komórki podpowiedzi
-interface HintCellProps {
-  status: HintStatus
-  title: string
-  children: React.ReactNode
+interface AttributeCellProps {
+  label: string
+  tooltip: string
+  hint: { status: string; value: string | number }
 }
 
-function HintCell({ status, title, children }: HintCellProps) {
-  const bgColor = {
-    correct: 'bg-correct text-white',
-    close: 'bg-close text-black',
-    wrong: 'bg-wrong text-white',
-  }[status]
+function AttributeCell({ label, tooltip, hint }: AttributeCellProps) {
+  const [showTooltip, setShowTooltip] = useState(false)
+  const isCorrect = hint.status === 'correct'
 
   return (
     <div
-      className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center ${bgColor} transition-all hover:scale-105`}
-      title={title}
+      className={`relative rounded-lg p-2.5 border ${
+        isCorrect
+          ? 'border-correct/30 bg-correct/10'
+          : 'border-wrong/30 bg-wrong/10'
+      }`}
     >
-      {children}
+      {/* Nagłówek atrybutu */}
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">{label}</span>
+        <div className="flex items-center gap-1">
+          <button
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+            onClick={e => e.stopPropagation()}
+          >
+            <Info className="w-3.5 h-3.5" />
+          </button>
+          {isCorrect ? (
+            <Check className="w-4 h-4 text-correct flex-shrink-0" />
+          ) : (
+            <X className="w-4 h-4 text-wrong flex-shrink-0" />
+          )}
+        </div>
+      </div>
+
+      {/* Wartość */}
+      <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+        {String(hint.value) || '–'}
+      </div>
+
+      {/* Tooltip */}
+      {showTooltip && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 w-48 px-3 py-2 bg-slate-800 dark:bg-slate-700 text-white text-xs rounded-lg shadow-lg text-center">
+          {tooltip}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800 dark:border-t-slate-700" />
+        </div>
+      )}
     </div>
   )
-}
-
-// Skróty pozycji
-function getPositionShort(position: string): string {
-  const shorts: Record<string, string> = {
-    'Bramkarz': 'BR',
-    'Obronca': 'OB',
-    'Pomocnik': 'PO',
-    'Napastnik': 'NA',
-  }
-  return shorts[position] || position.slice(0, 2).toUpperCase()
 }

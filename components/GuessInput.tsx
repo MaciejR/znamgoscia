@@ -113,7 +113,7 @@ export default function GuessInput({ onGuess, disabled }: GuessInputProps) {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => results.length > 0 && setIsOpen(true)}
-          placeholder="Wpisz nazwisko zawodnika..."
+          placeholder="Wpisz nazwę zawodnika..."
           disabled={disabled}
           className="w-full px-4 py-3 pl-11 pr-10 text-base border-2 border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:border-ekstra-green focus:outline-none focus:ring-2 focus:ring-ekstra-green/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
         />

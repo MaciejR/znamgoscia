@@ -263,10 +263,13 @@ class TransfermarktScraper:
 
         # Pozycja - szukamy w różnych miejscach
         position = ''
+        position_detailed = None
         position_td = row.find('td', class_='posrela')
         if position_td:
             pos_text = position_td.get_text(strip=True)
             position = parse_position(pos_text)
+            if pos_text:
+                position_detailed = pos_text  # pełna rola (np. "Środkowy obrońca")
         else:
             # Alternatywnie szukamy w innych td
             for td in row.find_all('td'):
@@ -276,6 +279,7 @@ class TransfermarktScraper:
                            'Defensive Midfield', 'Central Midfield', 'Attacking Midfield',
                            'Left Winger', 'Right Winger', 'Centre-Forward', 'Second Striker']:
                     position = parse_position(text)
+                    position_detailed = text
                     break
 
         # Narodowość
@@ -340,6 +344,7 @@ class TransfermarktScraper:
             'nationality': nationality,
             'nationality_code': nationality_code,
             'position': position,
+            'position_detailed': position_detailed,
             'jersey_number': jersey_number,
             'market_value': market_value,
             'photo_url': photo_url,
@@ -349,75 +354,79 @@ class TransfermarktScraper:
 
     def get_player_career(self, player_url: str) -> List[Dict[str, Any]]:
         """
-        Pobiera historię kariery zawodnika.
+        Pobiera historię kariery zawodnika z /leistungsdaten/saison/ges –
+        strona ta zwraca zagregowane statystyki po lidze (all-time).
+        Każdy wiersz = jedna liga/rozgrywki, z której wyciągamy nazwę ligi.
         """
         if not player_url:
             return []
 
-        # Zmień URL na stronę z karierą
-        career_url = player_url.replace('/profil/', '/leistungsdatendetails/')
+        # Wyciągnij ID zawodnika
+        id_match = re.search(r'/spieler/(\d+)', player_url)
+        if not id_match:
+            return []
+        player_id = id_match.group(1)
+
+        # Użyj sluga z URL jeśli dostępny, inaczej 'a'
+        slug_match = re.match(r'/([^/]+)/(?:profil|leistungsdaten)/spieler/', player_url)
+        slug = slug_match.group(1) if slug_match else 'a'
+
+        career_url = f"/{slug}/leistungsdaten/spieler/{player_id}/saison/ges"
 
         soup = self._respectful_request(career_url)
         if not soup:
             return []
 
         career = []
+        table = soup.find('table', class_='items')
+        if not table:
+            return []
 
-        # Znajdź tabelę z karierą
-        tables = soup.find_all('table', class_='items')
+        rows = table.find_all('tr', class_=['odd', 'even'])
 
-        for table in tables:
-            rows = table.find_all('tr', class_=['odd', 'even'])
-
-            for row in rows:
-                try:
-                    # Sezon
-                    season_td = row.find('td', class_='zentriert')
-                    season_text = season_td.get_text(strip=True) if season_td else ''
-
-                    # Parse season (format: "23/24" or "2023/2024")
-                    season_match = re.search(r'(\d{2,4})/(\d{2,4})', season_text)
-                    if not season_match:
-                        continue
-
-                    start, end = season_match.groups()
-                    if len(start) == 2:
-                        start = f"20{start}" if int(start) < 50 else f"19{start}"
-                    if len(end) == 2:
-                        end = f"20{end}" if int(end) < 50 else f"19{end}"
-
-                    season_start = int(start)
-                    season_end = int(end)
-
-                    # Klub
-                    club_link = row.find('a', class_='vereinprofil_tooltip')
-                    club_name = club_link.get('title', '') if club_link else ''
-
-                    # Występy i bramki
-                    stats_tds = row.find_all('td', class_='zentriert')
-                    appearances = 0
-                    goals = 0
-
-                    for i, td in enumerate(stats_tds):
-                        text = td.get_text(strip=True)
-                        if text.isdigit():
-                            if appearances == 0:
-                                appearances = int(text)
-                            else:
-                                goals = int(text)
-                                break
-
-                    if club_name:
-                        career.append({
-                            'club_name': club_name,
-                            'season_start': season_start,
-                            'season_end': season_end,
-                            'appearances': appearances,
-                            'goals': goals,
-                        })
-
-                except Exception as e:
+        for row in rows:
+            try:
+                # Nazwa ligi/rozgrywek – szukaj linku z /wettbewerb/ w href
+                league_link = row.find('a', href=lambda h: h and '/wettbewerb/' in h)
+                if not league_link:
                     continue
+                league_name = (league_link.get('title', '') or league_link.get_text(strip=True)).strip()
+                if not league_name:
+                    continue
+
+                # Sezony – wyciągnij z linku do szczegółów (saison/YYYY)
+                season_start = 0
+                season_end = 0
+                detail_td = row.find('td', class_='player-profile-performance-data')
+                if detail_td:
+                    detail_link = detail_td.find('a')
+                    if detail_link:
+                        href = detail_link.get('href', '')
+                        saison_match = re.search(r'/saison/(\d+)', href)
+                        if saison_match:
+                            year = int(saison_match.group(1))
+                            season_end = year
+                            season_start = year - 1
+
+                # Występy – pierwsza liczba w td.zentriert
+                appearances = 0
+                for td in row.find_all('td', class_='zentriert'):
+                    text = td.get_text(strip=True)
+                    if text.isdigit():
+                        appearances = int(text)
+                        break
+
+                career.append({
+                    'club_name': None,
+                    'league': league_name,
+                    'season_start': season_start,
+                    'season_end': season_end,
+                    'appearances': appearances,
+                    'goals': 0,
+                })
+
+            except Exception:
+                continue
 
         return career
 

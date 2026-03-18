@@ -1,37 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { Player } from '@/lib/types'
-
-// Typy obszarów do porównania
-type HintField = 'nationality' | 'position' | 'club' | 'league' | 'age'
+import { Player, CareerEntry } from '@/lib/types'
+import { scorePlayerMatch } from '@/lib/game-logic'
 
 interface HintRequestBody {
   date: string
-  matchedFields: HintField[] // obszary które już mają zgodność
+  alreadyGuessedIds?: number[]
 }
 
 interface HintResponse {
   success: boolean
-  hint?: {
-    player: Player
-    matchedField: HintField
-    matchedValue: string
-  }
-  noHintsAvailable?: boolean
+  hint?: { player: Player }
   error?: string
 }
 
-// POST /api/hint - pobierz wskazówkę
+// POST /api/hint – zwróć zawodnika z największą liczbą wspólnych atrybutów z szukanym
 export async function POST(request: NextRequest): Promise<NextResponse<HintResponse>> {
   try {
     const body: HintRequestBody = await request.json()
-    const { date, matchedFields } = body
+    const { date, alreadyGuessedIds = [] } = body
 
     if (!date) {
-      return NextResponse.json(
-        { success: false, error: 'Missing required field: date' },
-        { status: 400 }
-      )
+      return NextResponse.json({ success: false, error: 'Missing required field: date' }, { status: 400 })
     }
 
     // Pobierz dziennego zawodnika
@@ -42,120 +32,102 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
       .single()
 
     if (dailyError || !dailyPlayer) {
-      return NextResponse.json(
-        { success: false, error: 'No player set for this date' },
-        { status: 404 }
-      )
+      return NextResponse.json({ success: false, error: 'No player set for this date' }, { status: 404 })
     }
 
     const answerPlayerId = dailyPlayer.player_id
 
-    // Pobierz dane zawodnika do odgadnięcia
-    const answerPlayer = await fetchPlayerWithClub(answerPlayerId)
+    const [answerPlayer, answerCareer] = await Promise.all([
+      fetchPlayerWithClub(answerPlayerId),
+      fetchCareerHistory(answerPlayerId),
+    ])
 
     if (!answerPlayer) {
-      return NextResponse.json(
-        { success: false, error: 'Answer player not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ success: false, error: 'Answer player not found' }, { status: 404 })
     }
 
-    // Wszystkie możliwe obszary
-    const allFields: HintField[] = ['nationality', 'position', 'club', 'league', 'age']
+    // Pobierz kandydatów – wyklucz odpowiedź i już odgadnięte
+    const excludeIds = [answerPlayerId, ...alreadyGuessedIds]
 
-    // Znajdź obszary które jeszcze nie mają zgodności
-    const unmatchedFields = allFields.filter(field => !matchedFields.includes(field))
+    const { data: candidates, error: candidatesError } = await supabase
+      .from('players')
+      .select(`
+        id, name, name_normalized, birth_date, age, nationality, nationality_code,
+        position, position_detailed, jersey_number, market_value, photo_url,
+        transfermarkt_id, is_active, current_club_id,
+        clubs (id, name, name_short, league, logo_url)
+      `)
+      .not('id', 'in', `(${excludeIds.join(',')})`)
+      .limit(200)
 
-    // Jeśli wszystkie obszary są już zgodne
-    if (unmatchedFields.length === 0) {
-      return NextResponse.json({
-        success: true,
-        noHintsAvailable: true
-      })
+    if (candidatesError || !candidates || candidates.length === 0) {
+      return NextResponse.json({ success: false, error: 'No candidates found' }, { status: 404 })
     }
 
-    // Wybierz losowy obszar z niepasujących
-    const randomField = unmatchedFields[Math.floor(Math.random() * unmatchedFields.length)]
+    // Pobierz kariery kandydatów (batch)
+    const candidateIds = candidates.map(c => c.id)
+    const { data: allCareers } = await supabase
+      .from('career_history')
+      .select('id, player_id, club_id, club_name, league, season_start, season_end, appearances, goals')
+      .in('player_id', candidateIds.slice(0, 50)) // ogranicz dla perf
 
-    // Znajdź zawodnika z tym samym atrybutem
-    const hintPlayer = await findPlayerWithMatchingField(answerPlayer, randomField, answerPlayerId)
-
-    if (!hintPlayer) {
-      // Spróbuj inny obszar jeśli nie znaleziono zawodnika
-      for (const field of unmatchedFields) {
-        if (field === randomField) continue
-        const player = await findPlayerWithMatchingField(answerPlayer, field, answerPlayerId)
-        if (player) {
-          return NextResponse.json({
-            success: true,
-            hint: {
-              player: player,
-              matchedField: field,
-              matchedValue: getFieldValue(answerPlayer, field)
-            }
-          })
-        }
+    const careersByPlayer: Record<number, CareerEntry[]> = {}
+    if (allCareers) {
+      for (const entry of allCareers) {
+        if (!careersByPlayer[entry.player_id]) careersByPlayer[entry.player_id] = []
+        careersByPlayer[entry.player_id].push(entry as CareerEntry)
       }
-
-      // Jeśli żaden obszar nie ma pasującego zawodnika
-      return NextResponse.json({
-        success: true,
-        noHintsAvailable: true
-      })
     }
 
-    return NextResponse.json({
-      success: true,
-      hint: {
-        player: hintPlayer,
-        matchedField: randomField,
-        matchedValue: getFieldValue(answerPlayer, randomField)
+    // Oceń kandydatów
+    let bestScore = -1
+    let bestPlayer: Player | null = null
+
+    for (const raw of candidates) {
+      const clubData = raw.clubs
+      const club = (Array.isArray(clubData) ? clubData[0] : clubData) as Record<string, unknown> | null
+      const candidate: Player = {
+        ...raw,
+        club_name: club?.name as string | undefined,
+        club_short: club?.name_short as string | undefined,
+        club_league: club?.league as string | undefined,
+        club_logo: club?.logo_url as string | undefined,
+      } as Player
+
+      const candidateCareer = careersByPlayer[candidate.id] || []
+      const score = scorePlayerMatch(candidate, answerPlayer, candidateCareer, answerCareer)
+
+      if (score > bestScore) {
+        bestScore = score
+        bestPlayer = candidate
       }
-    })
+    }
+
+    if (!bestPlayer) {
+      return NextResponse.json({ success: false, error: 'No suitable hint found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ success: true, hint: { player: bestPlayer } })
 
   } catch (error) {
     console.error('Error in hint API:', error)
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
 }
 
-// Pobierz zawodnika z klubem
 async function fetchPlayerWithClub(playerId: number): Promise<Player | null> {
   const { data, error } = await supabase
     .from('players')
     .select(`
-      id,
-      name,
-      name_normalized,
-      birth_date,
-      age,
-      nationality,
-      nationality_code,
-      position,
-      position_detailed,
-      jersey_number,
-      market_value,
-      photo_url,
-      transfermarkt_id,
-      is_active,
-      current_club_id,
-      clubs (
-        id,
-        name,
-        name_short,
-        league,
-        logo_url
-      )
+      id, name, name_normalized, birth_date, age, nationality, nationality_code,
+      position, position_detailed, jersey_number, market_value, photo_url,
+      transfermarkt_id, is_active, current_club_id,
+      clubs (id, name, name_short, league, logo_url)
     `)
     .eq('id', playerId)
     .single()
 
-  if (error || !data) {
-    return null
-  }
+  if (error || !data) return null
 
   const clubData = data.clubs
   const club = (Array.isArray(clubData) ? clubData[0] : clubData) as Record<string, unknown> | null
@@ -169,117 +141,14 @@ async function fetchPlayerWithClub(playerId: number): Promise<Player | null> {
   } as Player
 }
 
-// Znajdź losowego zawodnika z pasującym polem
-async function findPlayerWithMatchingField(
-  answerPlayer: Player,
-  field: HintField,
-  excludePlayerId: number
-): Promise<Player | null> {
-  let query = supabase
-    .from('players')
-    .select(`
-      id,
-      name,
-      name_normalized,
-      birth_date,
-      age,
-      nationality,
-      nationality_code,
-      position,
-      position_detailed,
-      jersey_number,
-      market_value,
-      photo_url,
-      transfermarkt_id,
-      is_active,
-      current_club_id,
-      clubs (
-        id,
-        name,
-        name_short,
-        league,
-        logo_url
-      )
-    `)
-    .neq('id', excludePlayerId)
-    .eq('is_active', true)
+async function fetchCareerHistory(playerId: number): Promise<CareerEntry[]> {
+  const { data, error } = await supabase
+    .from('career_history')
+    .select('id, player_id, club_id, club_name, league, season_start, season_end, appearances, goals')
+    .eq('player_id', playerId)
+    .order('season_start', { ascending: false })
 
-  // Dodaj filtr w zależności od pola
-  switch (field) {
-    case 'nationality':
-      query = query.eq('nationality', answerPlayer.nationality)
-      break
-    case 'position':
-      query = query.eq('position', answerPlayer.position)
-      break
-    case 'club':
-      if (answerPlayer.current_club_id) {
-        query = query.eq('current_club_id', answerPlayer.current_club_id)
-      } else {
-        return null
-      }
-      break
-    case 'league':
-      // Potrzebujemy join na kluby dla ligi
-      if (answerPlayer.club_league) {
-        const { data: clubsData } = await supabase
-          .from('clubs')
-          .select('id')
-          .eq('league', answerPlayer.club_league)
+  if (error || !data) return []
 
-        if (clubsData && clubsData.length > 0) {
-          const clubIds = clubsData.map(c => c.id)
-          query = query.in('current_club_id', clubIds)
-        } else {
-          return null
-        }
-      } else {
-        return null
-      }
-      break
-    case 'age':
-      if (answerPlayer.age) {
-        query = query.eq('age', answerPlayer.age)
-      } else {
-        return null
-      }
-      break
-  }
-
-  // Pobierz losowego zawodnika
-  const { data, error } = await query.limit(50)
-
-  if (error || !data || data.length === 0) {
-    return null
-  }
-
-  // Wybierz losowego z wyników
-  const randomIndex = Math.floor(Math.random() * data.length)
-  const randomPlayer = data[randomIndex]
-  const clubData = randomPlayer.clubs
-  const club = (Array.isArray(clubData) ? clubData[0] : clubData) as Record<string, unknown> | null
-
-  return {
-    ...randomPlayer,
-    club_name: club?.name as string | undefined,
-    club_short: club?.name_short as string | undefined,
-    club_league: club?.league as string | undefined,
-    club_logo: club?.logo_url as string | undefined,
-  } as Player
-}
-
-// Pobierz wartość pola
-function getFieldValue(player: Player, field: HintField): string {
-  switch (field) {
-    case 'nationality':
-      return player.nationality
-    case 'position':
-      return player.position
-    case 'club':
-      return player.club_name || ''
-    case 'league':
-      return player.club_league || ''
-    case 'age':
-      return player.age?.toString() || ''
-  }
+  return data as CareerEntry[]
 }

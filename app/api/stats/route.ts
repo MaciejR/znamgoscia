@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
 
       const totalGames = data?.length || 0
       const wonGames = data?.filter(g => g.won).length || 0
-      const avgGuesses = data && data.length > 0
+      const avgGuesses = data && data.length > 0 && wonGames > 0
         ? data.filter(g => g.won).reduce((sum, g) => sum + g.guesses_count, 0) / wonGames
         : 0
 

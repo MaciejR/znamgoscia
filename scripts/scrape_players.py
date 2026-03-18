@@ -45,6 +45,7 @@ def main():
         'players_added': 0,
         'players_updated': 0,
         'players_deactivated': 0,
+        'career_entries': 0,
         'errors': 0,
     }
 
@@ -89,13 +90,32 @@ def main():
                 # Dodaj ID klubu
                 player_data['current_club_id'] = club_db_id
 
+                player_url = player_data.get('player_url')
+
                 # Zapisz zawodnika
                 player_id = db.upsert_player(player_data)
 
                 if player_id:
                     stats['players_added'] += 1
                     active_tm_ids.append(player_data.get('transfermarkt_id'))
-                    print(f"    ✓ {player_data.get('name')}")
+
+                    # Pobierz i zapisz historię kariery
+                    if player_url:
+                        career = scraper.get_player_career(player_url)
+                        stats['career_entries'] += len(career)
+                        for entry in career:
+                            db.add_career_entry({
+                                'player_id': player_id,
+                                'club_name': entry['club_name'],
+                                'league': entry.get('league'),
+                                'season_start': entry['season_start'],
+                                'season_end': entry['season_end'],
+                                'appearances': entry.get('appearances', 0),
+                                'goals': entry.get('goals', 0),
+                            })
+                        print(f"    ✓ {player_data.get('name')} ({len(career)} sezonów kariery)")
+                    else:
+                        print(f"    ✓ {player_data.get('name')}")
                 else:
                     stats['errors'] += 1
                     print(f"    ✗ {player_data.get('name')} - błąd zapisu")
@@ -119,6 +139,7 @@ def main():
     print(f"Kluby dodane/zaktualizowane: {stats['clubs_added']}")
     print(f"Zawodnicy dodani/zaktualizowani: {stats['players_added']}")
     print(f"Zawodnicy dezaktywowani: {stats['players_deactivated']}")
+    print(f"Wpisy kariery: {stats['career_entries']}")
     print(f"Błędy: {stats['errors']}")
     print(f"Koniec: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
