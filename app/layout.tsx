@@ -8,22 +8,29 @@ import HeaderNav from '@/components/HeaderNav'
 
 const inter = Inter({ subsets: ['latin', 'latin-ext'] })
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://ekstraklasaguess.pl'
+
 export const metadata: Metadata = {
   title: 'Ekstra Typ - Codzienny Quiz Piłkarski',
   description: 'Zgadnij dzisiejszego zawodnika polskiej Ekstraklasy! Codzienny quiz w stylu Wordle dla fanów polskiej piłki.',
   keywords: ['ekstraklasa', 'quiz', 'piłka nożna', 'wordle', 'polska', 'zawodnik'],
   authors: [{ name: 'Ekstra Typ' }],
+  metadataBase: new URL(SITE_URL),
+  alternates: { canonical: '/' },
   openGraph: {
     title: 'Ekstra Typ - Codzienny Quiz Piłkarski',
     description: 'Zgadnij dzisiejszego zawodnika polskiej Ekstraklasy!',
     type: 'website',
     locale: 'pl_PL',
     siteName: 'Ekstra Typ',
+    url: SITE_URL,
+    images: [{ url: '/api/og', width: 1200, height: 630, alt: 'Ekstra Typ - Codzienny Quiz Piłkarski' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Ekstra Typ - Codzienny Quiz Piłkarski',
     description: 'Zgadnij dzisiejszego zawodnika polskiej Ekstraklasy!',
+    images: ['/api/og'],
   },
   viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
   themeColor: '#00843d',
