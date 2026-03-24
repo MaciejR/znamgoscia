@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
       .select(`
         id,
         name,
+        is_active,
         position,
         nationality_code,
         photo_url,
@@ -42,7 +43,6 @@ export async function GET(request: NextRequest) {
           name_short
         )
       `)
-      .eq('is_active', true)
       .ilike('name_normalized', `%${normalizedQuery}%`)
       .order('name')
       .limit(limit)
@@ -62,8 +62,8 @@ export async function GET(request: NextRequest) {
       return {
         id: player.id,
         name: player.name,
-        club_name: club?.name as string | null,
-        club_short: club?.name_short as string | null,
+        club_name: !player.is_active ? 'Zakończona kariera' : (club?.name as string | null) || null,
+        club_short: !player.is_active ? null : (club?.name_short as string | null) || null,
         position: player.position,
         nationality_code: player.nationality_code,
         photo_url: player.photo_url,

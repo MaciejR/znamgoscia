@@ -181,8 +181,14 @@ class DatabaseManager:
             # Pobierz wszystkich zawodników (aktywnych i historycznych)
             all_players = self.client.table('players').select('*').execute().data or []
 
-            # Odfiltruj tych, którzy byli niedawno
-            available = [p for p in all_players if p['id'] not in recent_ids]
+            # Odfiltruj tych, którzy byli niedawno i mają kompletne dane do gry
+            available = [
+                p for p in all_players
+                if p['id'] not in recent_ids
+                and p.get('age') is not None
+                and p.get('position_detailed')
+                and p.get('nationality')
+            ]
 
             # Filtruj po minimalnej liczbie występów (tylko gdy próg > 0)
             if min_appearances > 0 and available:
