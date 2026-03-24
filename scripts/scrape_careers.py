@@ -7,6 +7,7 @@ Użycie:
     python scrape_careers.py                    # Wszyscy bez kariery
     python scrape_careers.py --limit 100        # Pierwszych 100
     python scrape_careers.py --refetch          # Wszyscy (nawet z karierą)
+    python scrape_careers.py --missing-league   # Gracze z wpisami bez pola league
     python scrape_careers.py --min-delay 3      # Wolniejszy (ostrożniejszy)
 """
 
@@ -28,6 +29,8 @@ def main():
                         help='Maksymalna liczba zawodników (0 = bez limitu)')
     parser.add_argument('--refetch', action='store_true',
                         help='Pobierz ponownie nawet jeśli mają już wpisaną karierę')
+    parser.add_argument('--missing-league', action='store_true',
+                        help='Tylko gracze, którzy mają wpisy kariery bez pola league')
     parser.add_argument('--min-delay', type=float, default=2.5,
                         help='Minimalne opóźnienie między żądaniami (domyślnie: 2.5s)')
     parser.add_argument('--max-delay', type=float, default=4.5,
@@ -55,15 +58,31 @@ def main():
     result = db.client.table('players').select('id, name, transfermarkt_id').execute()
     all_players = result.data or []
 
-    if not args.refetch:
+    if args.refetch:
+        players = all_players
+        print(f"Wszyscy zawodnicy: {len(players)}")
+    elif args.missing_league:
+        # Znajdź player_id gdzie istnieje wpis kariery z league = NULL (z paginacją)
+        missing_ids = set()
+        page_size = 1000
+        offset = 0
+        while True:
+            batch = db.client.table('career_history').select('player_id').is_('league', 'null').range(offset, offset + page_size - 1).execute()
+            if not batch.data:
+                break
+            for r in batch.data:
+                missing_ids.add(r['player_id'])
+            if len(batch.data) < page_size:
+                break
+            offset += page_size
+        players = [p for p in all_players if p['id'] in missing_ids]
+        print(f"Zawodnicy z brakującą ligą w karierze: {len(players)} / {len(all_players)}")
+    else:
         # Filtruj tych co już mają kariery
         with_career = db.client.table('career_history').select('player_id').execute()
         player_ids_with_career = {r['player_id'] for r in (with_career.data or [])}
         players = [p for p in all_players if p['id'] not in player_ids_with_career]
         print(f"Zawodnicy bez kariery: {len(players)} / {len(all_players)}")
-    else:
-        players = all_players
-        print(f"Wszyscy zawodnicy: {len(players)}")
 
     players = [p for p in players if p.get('transfermarkt_id')]
 

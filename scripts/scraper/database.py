@@ -178,8 +178,8 @@ class DatabaseManager:
 
             recent_ids = {r['player_id'] for r in (recent.data or [])}
 
-            # Pobierz wszystkich aktywnych zawodników
-            all_players = self.client.table('players').select('*').eq('is_active', True).execute().data or []
+            # Pobierz wszystkich zawodników (aktywnych i historycznych)
+            all_players = self.client.table('players').select('*').execute().data or []
 
             # Odfiltruj tych, którzy byli niedawno
             available = [p for p in all_players if p['id'] not in recent_ids]
@@ -209,7 +209,7 @@ class DatabaseManager:
                     print(f"Warning: no players meet min_appearances={min_appearances}, ignoring filter")
 
             if not available:
-                # Ostateczny fallback: dowolny aktywny zawodnik
+                # Ostateczny fallback: dowolny zawodnik
                 available = all_players
 
             return random.choice(available) if available else None

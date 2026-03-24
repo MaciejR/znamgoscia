@@ -18,7 +18,7 @@ export default function JakGracPage() {
             <strong>1.</strong> Codziennie losowany jest jeden zawodnik z polskiej Ekstraklasy.
           </p>
           <p>
-            <strong>2.</strong> Masz <strong>8 prób</strong>, żeby go odgadnąć.
+            <strong>2.</strong> Masz <strong>nieograniczoną liczbę prób</strong>, żeby go odgadnąć.
           </p>
           <p>
             <strong>3.</strong> Po każdym strzale otrzymujesz podpowiedzi w formie kolorów.
@@ -49,12 +49,12 @@ export default function JakGracPage() {
 
           <div className="flex items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm">
             <div className="w-12 h-12 bg-close rounded-lg flex items-center justify-center">
-              <span className="text-black font-bold">±2</span>
+              <span className="text-black font-bold">±3</span>
             </div>
             <div>
               <div className="font-medium text-slate-900 dark:text-white">Żółty (tylko wiek)</div>
               <div className="text-sm text-slate-500 dark:text-slate-400">
-                Wiek różni się o maksymalnie 2 lata
+                Wiek różni się o maksymalnie 3 lata
               </div>
             </div>
           </div>
@@ -144,7 +144,7 @@ export default function JakGracPage() {
             </div>
           </div>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-4 text-center">
-            Liga jest poprawna (Ekstraklasa), wiek bliski (±2), reszta niepoprawna.
+            Liga jest poprawna (Ekstraklasa), wiek bliski (±3), reszta niepoprawna.
           </p>
         </div>
       </section>
