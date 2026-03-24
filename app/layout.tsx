@@ -4,7 +4,9 @@ import './globals.css'
 import Link from 'next/link'
 import { Trophy, HelpCircle, Calendar, BarChart3 } from 'lucide-react'
 import { AuthProvider } from '@/lib/auth-context'
+import { StatsProvider } from '@/lib/stats-context'
 import HeaderNav from '@/components/HeaderNav'
+import GlobalStatsModal from '@/components/GlobalStatsModal'
 
 const inter = Inter({ subsets: ['latin', 'latin-ext'] })
 
@@ -56,6 +58,7 @@ export default function RootLayout({
     <html lang="pl">
       <body className={`${inter.className} min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800`}>
         <AuthProvider>
+        <StatsProvider>
           <header className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700">
             <div className="max-w-4xl mx-auto px-4 py-3">
               <div className="flex items-center justify-between">
@@ -101,6 +104,8 @@ export default function RootLayout({
               </p>
             </div>
           </footer>
+          <GlobalStatsModal />
+        </StatsProvider>
         </AuthProvider>
       </body>
     </html>

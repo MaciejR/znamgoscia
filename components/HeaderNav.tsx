@@ -4,10 +4,12 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { HelpCircle, Calendar, BarChart3, User, LogOut, LogIn } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
+import { useStats } from '@/lib/stats-context'
 import AuthModal from './AuthModal'
 
 export default function HeaderNav() {
   const { user, profile, signOut } = useAuth()
+  const { openStats } = useStats()
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
 
@@ -34,9 +36,9 @@ export default function HeaderNav() {
           <Calendar className="w-5 h-5 text-slate-600 dark:text-slate-400" />
         </Link>
         <button
+          onClick={openStats}
           className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           title="Statystyki"
-          id="stats-button"
         >
           <BarChart3 className="w-5 h-5 text-slate-600 dark:text-slate-400" />
         </button>

@@ -21,6 +21,7 @@ import GuessResultComponent from './GuessResult'
 import PlayerCard from './PlayerCard'
 import ShareButton from './ShareButton'
 import StatsModal from './StatsModal'
+import { useStats } from '@/lib/stats-context'
 import { Loader2, RefreshCw, BarChart3 } from 'lucide-react'
 
 interface GameProps {
@@ -34,7 +35,7 @@ export default function Game({ practiceDate }: GameProps = {}) {
   const [isLoading, setIsLoading] = useState(true)
   const [isGuessing, setIsGuessing] = useState(false)
   const [answerPlayer, setAnswerPlayer] = useState<Player | null>(null)
-  const [showStats, setShowStats] = useState(false)
+  const { isStatsOpen, closeStats } = useStats()
   const [error, setError] = useState<string | null>(null)
   const [isHintLoading, setIsHintLoading] = useState(false)
   const [avgGuesses, setAvgGuesses] = useState<number | null>(null)
@@ -43,16 +44,6 @@ export default function Game({ practiceDate }: GameProps = {}) {
     initGame()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [practiceDate])
-
-  // Nasłuchuj na przycisk statystyk w headerze
-  useEffect(() => {
-    const statsButton = document.getElementById('stats-button')
-    if (statsButton) {
-      const handler = () => setShowStats(true)
-      statsButton.addEventListener('click', handler)
-      return () => statsButton.removeEventListener('click', handler)
-    }
-  }, [])
 
   const practiceStateKey = practiceDate ? `ekstra-typ-practice-${practiceDate}` : null
 
@@ -339,10 +330,11 @@ export default function Game({ practiceDate }: GameProps = {}) {
       )}
 
       {/* Statystyki użytkownika */}
+      <div data-game-stats-modal />
       <StatsModal
         stats={userStats}
-        isOpen={showStats}
-        onClose={() => setShowStats(false)}
+        isOpen={isStatsOpen}
+        onClose={closeStats}
         todayGuesses={gameState.status === 'won' ? gameState.guesses.length : undefined}
       />
 
