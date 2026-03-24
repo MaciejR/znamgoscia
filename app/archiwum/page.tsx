@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight, Trophy, X, Loader2, Play } from 'lucide-react'
 import Link from 'next/link'
 import { Player } from '@/lib/types'
@@ -22,6 +22,7 @@ export default function ArchiwumPage() {
   const [daysData, setDaysData] = useState<Map<string, DayData>>(new Map())
   const [selectedDay, setSelectedDay] = useState<DayData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const detailRef = useRef<HTMLDivElement>(null)
 
   const today = new Date()
   const todayString = today.toISOString().split('T')[0]
@@ -53,10 +54,14 @@ export default function ArchiwumPage() {
   const fetchDayData = async (date: string) => {
     if (daysData.has(date)) {
       setSelectedDay(daysData.get(date)!)
+      setTimeout(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100)
       return
     }
 
     setIsLoading(true)
+    setSelectedDay({ date }) // Pokaż panel z loaderem od razu
+    setTimeout(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100)
+
     try {
       const response = await fetch(`/api/daily?date=${date}`)
       const data = await response.json()
@@ -197,7 +202,7 @@ export default function ArchiwumPage() {
 
       {/* Wybrany dzień */}
       {selectedDay && (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 animate-fade-in">
+        <div ref={detailRef} className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 animate-fade-in">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
               {new Date(selectedDay.date).toLocaleDateString('pl-PL', {
