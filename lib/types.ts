@@ -86,7 +86,7 @@ export interface GuessResult {
 }
 
 // Stan gry
-export type GameStatus = 'playing' | 'won'
+export type GameStatus = 'playing' | 'won' | 'gave_up'
 
 export interface GameState {
   date: string

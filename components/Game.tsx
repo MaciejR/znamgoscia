@@ -65,6 +65,10 @@ export default function Game({ practiceDate }: GameProps = {}) {
           if (savedState.status === 'won') {
             const lastGuess = savedState.guesses[savedState.guesses.length - 1]
             if (lastGuess?.answer) setAnswerPlayer(lastGuess.answer)
+          } else if (savedState.status === 'gave_up') {
+            const res = await fetch(`/api/daily?date=${date}&reveal=true`)
+            const d = await res.json()
+            if (d.player) setAnswerPlayer(d.player)
           }
         } else {
           const newState = createNewGameState(date)
@@ -82,6 +86,10 @@ export default function Game({ practiceDate }: GameProps = {}) {
           if (savedState.status === 'won') {
             const lastGuess = savedState.guesses[savedState.guesses.length - 1]
             if (lastGuess?.answer) setAnswerPlayer(lastGuess.answer)
+          } else if (savedState.status === 'gave_up') {
+            const res = await fetch(`/api/daily?date=${date}&reveal=true`)
+            const d = await res.json()
+            if (d.player) setAnswerPlayer(d.player)
           }
         } else {
           const newState = createNewGameState(date)
@@ -239,7 +247,7 @@ export default function Game({ practiceDate }: GameProps = {}) {
       }
 
       setAnswerPlayer(data.player as Player)
-      const newState: GameState = { ...gameState, status: 'won' }
+      const newState: GameState = { ...gameState, status: 'gave_up' }
       setGameState(newState)
 
       if (isPractice) {

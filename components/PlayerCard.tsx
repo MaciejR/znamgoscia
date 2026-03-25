@@ -28,23 +28,23 @@ export default function PlayerCard({ player, won, guessCount }: PlayerCardProps)
         className={`text-center mb-4 p-4 rounded-xl ${
           won
             ? 'bg-correct/10 text-correct'
-            : 'bg-wrong/10 text-wrong'
+            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
         }`}
       >
         <div className="flex items-center justify-center gap-2 mb-1">
           {won ? (
             <Trophy className="w-6 h-6" />
           ) : (
-            <span className="text-2xl">😔</span>
+            <span className="text-2xl">🏳️</span>
           )}
           <span className="text-xl font-bold">
-            {won ? 'Brawo!' : 'Nie udało się'}
+            {won ? 'Brawo!' : 'Jutro dasz radę!'}
           </span>
         </div>
         <p className="text-sm opacity-80">
           {won
             ? `Zgadłeś w ${guessCount} ${guessCount === 1 ? 'próbie' : 'próbach'}!`
-            : 'Spróbuj ponownie jutro'}
+            : 'Prawidłowa odpowiedź to:'}
         </p>
       </div>
 
