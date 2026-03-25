@@ -8,6 +8,8 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const dateParam = searchParams.get('date')
 
+    const reveal = searchParams.get('reveal') === 'true'
+
     // Użyj podanej daty lub dzisiejszej
     const date = dateParam || new Date().toISOString().split('T')[0]
 
@@ -66,8 +68,8 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Dla dat przeszłych zwróć pełne dane zawodnika
-    if (isPastDate) {
+    // Dla dat przeszłych lub reveal=true zwróć pełne dane zawodnika
+    if (isPastDate || reveal) {
       const player = dailyPlayer.players as unknown as Record<string, unknown>
       const club = player?.clubs as unknown as Record<string, unknown>
 

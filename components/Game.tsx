@@ -22,7 +22,7 @@ import PlayerCard from './PlayerCard'
 import ShareButton from './ShareButton'
 import StatsModal from './StatsModal'
 import { useStats } from '@/lib/stats-context'
-import { Loader2, RefreshCw, BarChart3 } from 'lucide-react'
+import { Loader2, RefreshCw, BarChart3, Flag } from 'lucide-react'
 
 interface GameProps {
   practiceDate?: string
@@ -38,6 +38,7 @@ export default function Game({ practiceDate }: GameProps = {}) {
   const { isStatsOpen, closeStats } = useStats()
   const [error, setError] = useState<string | null>(null)
   const [isHintLoading, setIsHintLoading] = useState(false)
+  const [isGivingUp, setIsGivingUp] = useState(false)
   const [avgGuesses, setAvgGuesses] = useState<number | null>(null)
 
   useEffect(() => {
@@ -222,6 +223,38 @@ export default function Game({ practiceDate }: GameProps = {}) {
     }
   }, [gameState, isHintLoading])
 
+  const handleGiveUp = useCallback(async () => {
+    if (!gameState || gameState.status !== 'playing' || isGivingUp) return
+
+    setIsGivingUp(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/daily?date=${gameState.date}&reveal=true`)
+      const data = await response.json()
+
+      if (!data.player) {
+        setError('Nie udało się pobrać odpowiedzi.')
+        return
+      }
+
+      setAnswerPlayer(data.player as Player)
+      const newState: GameState = { ...gameState, status: 'won' }
+      setGameState(newState)
+
+      if (isPractice) {
+        localStorage.setItem(practiceStateKey!, JSON.stringify(newState))
+      } else {
+        saveGameState(newState)
+      }
+    } catch (err) {
+      console.error('Error giving up:', err)
+      setError('Wystąpił błąd.')
+    } finally {
+      setIsGivingUp(false)
+    }
+  }, [gameState, isGivingUp])
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
@@ -349,14 +382,27 @@ export default function Game({ practiceDate }: GameProps = {}) {
             <button
               onClick={handleHint}
               disabled={isGuessing || isHintLoading}
-              className="flex items-center gap-1.5 px-4 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 disabled:bg-slate-400 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors whitespace-nowrap"
+              className="flex items-center gap-1.5 px-3 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 disabled:bg-slate-400 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors whitespace-nowrap"
             >
               {isHintLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <BarChart3 className="w-4 h-4" />
               )}
-              Podpowiedź
+              <span className="hidden sm:inline">Podpowiedź</span>
+            </button>
+            {/* Przycisk Poddaj się */}
+            <button
+              onClick={handleGiveUp}
+              disabled={isGuessing || isGivingUp}
+              className="flex items-center gap-1.5 px-3 py-3 rounded-xl bg-red-600 hover:bg-red-500 disabled:bg-red-400 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors whitespace-nowrap"
+            >
+              {isGivingUp ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Flag className="w-4 h-4" />
+              )}
+              <span className="hidden sm:inline">Poddaj się</span>
             </button>
           </div>
           {isGuessing && (
