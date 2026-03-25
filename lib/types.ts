@@ -98,11 +98,8 @@ export interface GameState {
 export interface SearchResult {
   id: number
   name: string
-  club_name: string | null
-  club_short: string | null
-  position: Position
+  position_detailed: string | null
   nationality_code: string | null
-  photo_url: string | null
 }
 
 // Statystyki użytkownika (localStorage)

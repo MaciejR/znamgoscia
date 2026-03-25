@@ -34,14 +34,8 @@ export async function GET(request: NextRequest) {
       .select(`
         id,
         name,
-        is_active,
-        position,
-        nationality_code,
-        photo_url,
-        clubs (
-          name,
-          name_short
-        )
+        position_detailed,
+        nationality_code
       `)
       .ilike('name_normalized', `%${normalizedQuery}%`)
       .order('name')
@@ -57,16 +51,11 @@ export async function GET(request: NextRequest) {
 
     // Formatuj wyniki
     const players: SearchResult[] = (data || []).map(player => {
-      const clubData = player.clubs
-      const club = (Array.isArray(clubData) ? clubData[0] : clubData) as Record<string, unknown> | null
       return {
         id: player.id,
         name: player.name,
-        club_name: !player.is_active ? 'Zakończona kariera' : (club?.name as string | null) || null,
-        club_short: !player.is_active ? null : (club?.name_short as string | null) || null,
-        position: player.position,
+        position_detailed: player.position_detailed,
         nationality_code: player.nationality_code,
-        photo_url: player.photo_url,
       }
     })
 
