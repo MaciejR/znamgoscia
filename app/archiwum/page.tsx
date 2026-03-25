@@ -72,12 +72,24 @@ export default function ArchiwumPage() {
       }
 
       // Sprawdź localStorage czy grał w ten dzień
+      // Główny stan gry (dzisiejszy dzień)
       const savedState = localStorage.getItem('ekstra-typ-game-state')
       if (savedState) {
         const state = JSON.parse(savedState)
         if (state.date === date && state.status !== 'playing') {
           dayData.played = true
           dayData.won = state.status === 'won'
+        }
+      }
+      // Stan ćwiczeniowy (historyczne dni)
+      if (!dayData.played) {
+        const practiceState = localStorage.getItem(`ekstra-typ-practice-${date}`)
+        if (practiceState) {
+          const state = JSON.parse(practiceState)
+          if (state.status !== 'playing') {
+            dayData.played = true
+            dayData.won = state.status === 'won'
+          }
         }
       }
 
@@ -223,7 +235,7 @@ export default function ArchiwumPage() {
             <div className="flex justify-center py-8">
               <Loader2 className="w-6 h-6 text-ekstra-green animate-spin" />
             </div>
-          ) : selectedDay.player ? (
+          ) : selectedDay.player && selectedDay.won ? (
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 flex-shrink-0">
                 {selectedDay.player.photo_url ? (
@@ -266,9 +278,24 @@ export default function ArchiwumPage() {
                   className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 bg-ekstra-green text-white text-sm rounded-lg hover:bg-ekstra-green/90 transition-colors"
                 >
                   <Play className="w-3.5 h-3.5" />
-                  Zagraj
+                  Zagraj ponownie
                 </Link>
               </div>
+            </div>
+          ) : selectedDay.player ? (
+            <div className="text-center py-4">
+              <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                <span className="text-3xl">❓</span>
+              </div>
+              <p className="text-slate-600 dark:text-slate-300 font-medium mb-1">Kto był zawodnikiem dnia?</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500 mb-3">Zagraj żeby się dowiedzieć!</p>
+              <Link
+                href={`/cwiczenia/${selectedDay.date}`}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-ekstra-green text-white text-sm rounded-lg hover:bg-ekstra-green/90 transition-colors"
+              >
+                <Play className="w-3.5 h-3.5" />
+                Zagraj
+              </Link>
             </div>
           ) : (
             <p className="text-slate-500 dark:text-slate-400 text-center py-4">

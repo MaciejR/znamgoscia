@@ -82,28 +82,41 @@ function compareAge(guessAge: number | null, answerAge: number | null): Hint {
 
 // Sprawdź czy answer grał w którymś klubie z kariery guess
 function compareHistoryClubs(guessCareer: CareerEntry[], answerCareer: CareerEntry[]): Hint {
-  const guessClubs = new Set(guessCareer.map(c => c.club_name?.toLowerCase()).filter((c): c is string => Boolean(c)))
+  const guessClubsMap = new Map<string, string>() // lowercase -> original
+  for (const c of guessCareer) {
+    if (c.club_name) guessClubsMap.set(c.club_name.toLowerCase(), c.club_name)
+  }
   const answerClubs = new Set(answerCareer.map(c => c.club_name?.toLowerCase()).filter((c): c is string => Boolean(c)))
-  const hasCommon = guessClubs.size > 0 && answerClubs.size > 0 && Array.from(guessClubs).some(club => answerClubs.has(club))
+
+  const commonClubs: string[] = []
+  guessClubsMap.forEach((original, lower) => {
+    if (answerClubs.has(lower)) commonClubs.push(original)
+  })
+
   return {
-    status: hasCommon ? 'correct' : 'wrong',
-    value: hasCommon ? 'Tak' : 'Nie',
+    status: commonClubs.length > 0 ? 'correct' : 'wrong',
+    value: commonClubs.length > 0 ? commonClubs.join(', ') : 'Nie',
   }
 }
 
 // Sprawdź czy answer grał w której ś lidze z kariery guess
 function compareHistoryLeagues(guessCareer: CareerEntry[], answerCareer: CareerEntry[]): Hint {
-  const guessLeagues = new Set(
-    guessCareer.map(c => c.league?.toLowerCase()).filter((l): l is string => Boolean(l))
-  )
+  const guessLeaguesMap = new Map<string, string>() // lowercase -> original
+  for (const c of guessCareer) {
+    if (c.league) guessLeaguesMap.set(c.league.toLowerCase(), c.league)
+  }
   const answerLeagues = new Set(
     answerCareer.map(c => c.league?.toLowerCase()).filter((l): l is string => Boolean(l))
   )
-  const hasCommon = guessLeagues.size > 0 && answerLeagues.size > 0
-    && Array.from(guessLeagues).some(league => answerLeagues.has(league))
+
+  const commonLeagues: string[] = []
+  guessLeaguesMap.forEach((original, lower) => {
+    if (answerLeagues.has(lower)) commonLeagues.push(original)
+  })
+
   return {
-    status: hasCommon ? 'correct' : 'wrong',
-    value: hasCommon ? 'Tak' : 'Nie',
+    status: commonLeagues.length > 0 ? 'correct' : 'wrong',
+    value: commonLeagues.length > 0 ? commonLeagues.join(', ') : 'Nie',
   }
 }
 
