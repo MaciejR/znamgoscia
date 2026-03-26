@@ -80,17 +80,33 @@ function compareAge(guessAge: number | null, answerAge: number | null): Hint {
   }
 }
 
+// Normalizuj nazwę klubu: usuń prefiksy (FC, AC, ACF, etc.), lowercase
+function normalizeClubName(name: string): string {
+  return name.toLowerCase()
+    .replace(/^(fc |ac |acf |afc |sc |fk |sk |rks |mks |ks |gks |ts |wks |bks |oks |lks |zks |nk )/i, '')
+    .replace(/ (fc|sc|fk|sk)$/i, '')
+    .trim()
+}
+
 // Sprawdź czy answer grał w którymś klubie z kariery guess
 function compareHistoryClubs(guessCareer: CareerEntry[], answerCareer: CareerEntry[]): Hint {
-  const guessClubsMap = new Map<string, string>() // lowercase -> original
+  // Mapa: znormalizowana nazwa -> oryginalna nazwa (z guess)
+  const guessClubsMap = new Map<string, string>()
   for (const c of guessCareer) {
-    if (c.club_name) guessClubsMap.set(c.club_name.toLowerCase(), c.club_name)
+    if (c.club_name) guessClubsMap.set(normalizeClubName(c.club_name), c.club_name)
   }
-  const answerClubs = new Set(answerCareer.map(c => c.club_name?.toLowerCase()).filter((c): c is string => Boolean(c)))
+  // Set znormalizowanych nazw z answer
+  const answerClubsNorm = new Set(
+    answerCareer.map(c => c.club_name ? normalizeClubName(c.club_name) : null).filter((c): c is string => Boolean(c))
+  )
 
   const commonClubs: string[] = []
-  guessClubsMap.forEach((original, lower) => {
-    if (answerClubs.has(lower)) commonClubs.push(original)
+  const seen = new Set<string>()
+  guessClubsMap.forEach((original, norm) => {
+    if (answerClubsNorm.has(norm) && !seen.has(norm)) {
+      seen.add(norm)
+      commonClubs.push(original)
+    }
   })
 
   return {
@@ -101,7 +117,7 @@ function compareHistoryClubs(guessCareer: CareerEntry[], answerCareer: CareerEnt
 
 // Sprawdź czy answer grał w której ś lidze z kariery guess
 function compareHistoryLeagues(guessCareer: CareerEntry[], answerCareer: CareerEntry[]): Hint {
-  const guessLeaguesMap = new Map<string, string>() // lowercase -> original
+  const guessLeaguesMap = new Map<string, string>()
   for (const c of guessCareer) {
     if (c.league) guessLeaguesMap.set(c.league.toLowerCase(), c.league)
   }
@@ -110,8 +126,12 @@ function compareHistoryLeagues(guessCareer: CareerEntry[], answerCareer: CareerE
   )
 
   const commonLeagues: string[] = []
+  const seen = new Set<string>()
   guessLeaguesMap.forEach((original, lower) => {
-    if (answerLeagues.has(lower)) commonLeagues.push(original)
+    if (answerLeagues.has(lower) && !seen.has(lower)) {
+      seen.add(lower)
+      commonLeagues.push(original)
+    }
   })
 
   return {
@@ -134,8 +154,8 @@ export function scorePlayerMatch(
   if (candidate.position_detailed && answer.position_detailed &&
       candidate.position_detailed === answer.position_detailed) score++
 
-  const candidateClubs = new Set(candidateCareer.map(c => c.club_name?.toLowerCase()).filter((c): c is string => Boolean(c)))
-  const answerClubs = new Set(answerCareer.map(c => c.club_name?.toLowerCase()).filter((c): c is string => Boolean(c)))
+  const candidateClubs = new Set(candidateCareer.map(c => c.club_name ? normalizeClubName(c.club_name) : null).filter((c): c is string => Boolean(c)))
+  const answerClubs = new Set(answerCareer.map(c => c.club_name ? normalizeClubName(c.club_name) : null).filter((c): c is string => Boolean(c)))
   if (candidateClubs.size > 0 && answerClubs.size > 0 && Array.from(candidateClubs).some(c => answerClubs.has(c))) score++
 
   const candidateLeagues = new Set(
