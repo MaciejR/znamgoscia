@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { Player, CareerEntry } from '@/lib/types'
 import { scorePlayerMatch } from '@/lib/game-logic'
+import { withCurrentAge } from '@/lib/utils'
 
 interface GuessedHints {
   nationality?: boolean
@@ -56,6 +57,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
     if (!answerPlayer) {
       return NextResponse.json({ success: false, error: 'Answer player not found' }, { status: 404 })
     }
+
+    const answerWithAge = withCurrentAge(answerPlayer)
 
     // Pobierz kandydatów – wyklucz odpowiedź i już odgadnięte
     const excludeIds = [answerPlayerId, ...alreadyGuessedIds]
@@ -120,17 +123,19 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
       // Inteligentny scoring: +3 za ujawnienie nieznanego atrybutu, +1 za potwierdzenie znanego
       let score = 0
 
-      const matchNationality = candidate.nationality?.toLowerCase() === answerPlayer.nationality?.toLowerCase()
+      const candidateWithAge = withCurrentAge(candidate)
+
+      const matchNationality = candidateWithAge.nationality?.toLowerCase() === answerWithAge.nationality?.toLowerCase()
       score += matchNationality ? (known.nationality ? 1 : 3) : 0
 
-      const matchStatus = candidate.is_active === answerPlayer.is_active
+      const matchStatus = candidateWithAge.is_active === answerWithAge.is_active
       score += matchStatus ? (known.career_status ? 1 : 3) : 0
 
-      const matchPosition = candidate.position?.toLowerCase() === answerPlayer.position?.toLowerCase()
+      const matchPosition = candidateWithAge.position?.toLowerCase() === answerWithAge.position?.toLowerCase()
       score += matchPosition ? (known.position ? 1 : 3) : 0
 
-      const matchDetailedPos = candidate.position_detailed && answerPlayer.position_detailed &&
-        candidate.position_detailed.toLowerCase() === answerPlayer.position_detailed.toLowerCase()
+      const matchDetailedPos = candidateWithAge.position_detailed && answerWithAge.position_detailed &&
+        candidateWithAge.position_detailed.toLowerCase() === answerWithAge.position_detailed.toLowerCase()
       score += matchDetailedPos ? (known.position_detailed ? 1 : 3) : 0
 
       const candidateClubs = new Set(candidateCareer.map(c => c.club_name?.toLowerCase()).filter(Boolean))
@@ -145,8 +150,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
         Array.from(candidateLeagues).some(l => answerLeagues.has(l as string))
       score += matchLeagues ? (known.league_history ? 1 : 3) : 0
 
-      if (candidate.age != null && answerPlayer.age != null) {
-        const ageDiff = Math.abs(candidate.age - answerPlayer.age)
+      if (candidateWithAge.age != null && answerWithAge.age != null) {
+        const ageDiff = Math.abs(candidateWithAge.age - answerWithAge.age)
         if (ageDiff === 0) score += known.age ? 1 : 3
         else if (ageDiff <= 3) score += known.age ? 0.5 : 2
       }

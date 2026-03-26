@@ -1,4 +1,19 @@
-import { Position } from './types'
+import { Player, Position } from './types'
+
+// Oblicz aktualny wiek z daty urodzenia (lub użyj statycznego age jako fallback)
+export function withCurrentAge<T extends Player>(player: T): T {
+  if (player.birth_date) {
+    const today = new Date()
+    const birth = new Date(player.birth_date)
+    let age = today.getFullYear() - birth.getFullYear()
+    const monthDiff = today.getMonth() - birth.getMonth()
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--
+    }
+    return { ...player, age }
+  }
+  return player // fallback: statyczny age z bazy
+}
 
 // Normalizacja polskich znaków
 export function normalizePolish(str: string): string {

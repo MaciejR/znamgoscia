@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { compareGuess } from '@/lib/game-logic'
 import { Player, CareerEntry } from '@/lib/types'
+import { withCurrentAge } from '@/lib/utils'
 
 interface GuessRequestBody {
   date: string
@@ -50,8 +51,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const guessedPlayer = guessedResult.player
-    const answerPlayer = answerResult.player
+    const guessedPlayer = withCurrentAge(guessedResult.player)
+    const answerPlayer = withCurrentAge(answerResult.player)
 
     // Pobierz historię kariery obu zawodników
     const [guessCareer, answerCareer] = await Promise.all([

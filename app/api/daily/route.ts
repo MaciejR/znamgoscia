@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { withCurrentAge } from '@/lib/utils'
+import { Player } from '@/lib/types'
 
 // GET /api/daily - pobierz dzisiejszego zawodnika
 // GET /api/daily?date=2024-01-15 - pobierz zawodnika z konkretnego dnia
@@ -73,13 +75,21 @@ export async function GET(request: NextRequest) {
       const player = dailyPlayer.players as unknown as Record<string, unknown>
       const club = player?.clubs as unknown as Record<string, unknown>
 
+      const playerData = withCurrentAge({
+        id: player?.id,
+        name: player?.name,
+        age: player?.age,
+        birth_date: player?.birth_date,
+        nationality: player?.nationality,
+      } as Player)
+
       return NextResponse.json({
         date,
         playerExists: true,
         player: {
           id: player?.id,
           name: player?.name,
-          age: player?.age,
+          age: playerData.age,
           nationality: player?.nationality,
           nationality_code: player?.nationality_code,
           position: player?.position,
