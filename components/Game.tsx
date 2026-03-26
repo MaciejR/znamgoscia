@@ -190,10 +190,20 @@ export default function Game({ practiceDate }: GameProps = {}) {
     try {
       const alreadyGuessedIds = gameState.guesses.map(g => g.guessedPlayer.id)
 
+      // Zbierz które atrybuty gracz już odkrył (trafił w jakiejkolwiek próbie)
+      const knownAttributes: Record<string, boolean> = {}
+      for (const g of gameState.guesses) {
+        for (const [key, hint] of Object.entries(g.hints)) {
+          if (hint.status === 'correct' || hint.status === 'close') {
+            knownAttributes[key] = true
+          }
+        }
+      }
+
       const hintResponse = await fetch('/api/hint', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: gameState.date, alreadyGuessedIds }),
+        body: JSON.stringify({ date: gameState.date, alreadyGuessedIds, knownAttributes }),
       })
 
       if (!hintResponse.ok) throw new Error('Failed to get hint')

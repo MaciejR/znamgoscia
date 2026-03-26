@@ -3,9 +3,20 @@ import { supabase } from '@/lib/supabase'
 import { Player, CareerEntry } from '@/lib/types'
 import { scorePlayerMatch } from '@/lib/game-logic'
 
+interface GuessedHints {
+  nationality?: boolean
+  career_status?: boolean
+  position?: boolean
+  position_detailed?: boolean
+  club_history?: boolean
+  league_history?: boolean
+  age?: boolean // true = exact or close
+}
+
 interface HintRequestBody {
   date: string
   alreadyGuessedIds?: number[]
+  knownAttributes?: GuessedHints
 }
 
 interface HintResponse {
@@ -18,7 +29,7 @@ interface HintResponse {
 export async function POST(request: NextRequest): Promise<NextResponse<HintResponse>> {
   try {
     const body: HintRequestBody = await request.json()
-    const { date, alreadyGuessedIds = [] } = body
+    const { date, alreadyGuessedIds = [], knownAttributes = {} } = body
 
     if (!date) {
       return NextResponse.json({ success: false, error: 'Missing required field: date' }, { status: 400 })
@@ -58,18 +69,25 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
         clubs (id, name, name_short, league, logo_url)
       `)
       .not('id', 'in', `(${excludeIds.join(',')})`)
-      .limit(200)
+      .not('age', 'is', null)
+      .limit(500)
 
     if (candidatesError || !candidates || candidates.length === 0) {
       return NextResponse.json({ success: false, error: 'No candidates found' }, { status: 404 })
     }
 
-    // Pobierz kariery kandydatów (batch)
+    // Pobierz kariery kandydatów (batch, max 200 graczy)
     const candidateIds = candidates.map(c => c.id)
-    const { data: allCareers } = await supabase
-      .from('career_history')
-      .select('id, player_id, club_id, club_name, league, season_start, season_end, appearances, goals')
-      .in('player_id', candidateIds.slice(0, 50)) // ogranicz dla perf
+    let allCareers: CareerEntry[] = []
+    // Supabase .in() ma limit ~300 elementów, batch po 200
+    for (let i = 0; i < Math.min(candidateIds.length, 400); i += 200) {
+      const batch = candidateIds.slice(i, i + 200)
+      const { data } = await supabase
+        .from('career_history')
+        .select('id, player_id, club_id, club_name, league, season_start, season_end, appearances, goals')
+        .in('player_id', batch)
+      if (data) allCareers = allCareers.concat(data as CareerEntry[])
+    }
 
     const careersByPlayer: Record<number, CareerEntry[]> = {}
     if (allCareers) {
@@ -79,9 +97,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
       }
     }
 
-    // Oceń kandydatów
+    // Oceń kandydatów - priorytet: ujawnij brakujące atrybuty
     let bestScore = -1
     let bestPlayer: Player | null = null
+
+    // Które atrybuty gracz już zna (trafił w poprzednich próbach)?
+    const known = knownAttributes
 
     for (const raw of candidates) {
       const clubData = raw.clubs
@@ -95,7 +116,40 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
       } as Player
 
       const candidateCareer = careersByPlayer[candidate.id] || []
-      const score = scorePlayerMatch(candidate, answerPlayer, candidateCareer, answerCareer)
+
+      // Inteligentny scoring: +3 za ujawnienie nieznanego atrybutu, +1 za potwierdzenie znanego
+      let score = 0
+
+      const matchNationality = candidate.nationality?.toLowerCase() === answerPlayer.nationality?.toLowerCase()
+      score += matchNationality ? (known.nationality ? 1 : 3) : 0
+
+      const matchStatus = candidate.is_active === answerPlayer.is_active
+      score += matchStatus ? (known.career_status ? 1 : 3) : 0
+
+      const matchPosition = candidate.position?.toLowerCase() === answerPlayer.position?.toLowerCase()
+      score += matchPosition ? (known.position ? 1 : 3) : 0
+
+      const matchDetailedPos = candidate.position_detailed && answerPlayer.position_detailed &&
+        candidate.position_detailed.toLowerCase() === answerPlayer.position_detailed.toLowerCase()
+      score += matchDetailedPos ? (known.position_detailed ? 1 : 3) : 0
+
+      const candidateClubs = new Set(candidateCareer.map(c => c.club_name?.toLowerCase()).filter(Boolean))
+      const answerClubs = new Set(answerCareer.map(c => c.club_name?.toLowerCase()).filter(Boolean))
+      const matchClubs = candidateClubs.size > 0 && answerClubs.size > 0 &&
+        Array.from(candidateClubs).some(c => answerClubs.has(c as string))
+      score += matchClubs ? (known.club_history ? 1 : 3) : 0
+
+      const candidateLeagues = new Set(candidateCareer.map(c => c.league?.toLowerCase()).filter(Boolean))
+      const answerLeagues = new Set(answerCareer.map(c => c.league?.toLowerCase()).filter(Boolean))
+      const matchLeagues = candidateLeagues.size > 0 &&
+        Array.from(candidateLeagues).some(l => answerLeagues.has(l as string))
+      score += matchLeagues ? (known.league_history ? 1 : 3) : 0
+
+      if (candidate.age != null && answerPlayer.age != null) {
+        const ageDiff = Math.abs(candidate.age - answerPlayer.age)
+        if (ageDiff === 0) score += known.age ? 1 : 3
+        else if (ageDiff <= 3) score += known.age ? 0.5 : 2
+      }
 
       if (score > bestScore) {
         bestScore = score
