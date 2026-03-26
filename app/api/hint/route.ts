@@ -100,12 +100,17 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
       }
     }
 
-    // Oceń kandydatów - priorytet: ujawnij brakujące atrybuty
+    // Oceń kandydatów - podpowiadaj celowo, 1-2 nowe atrybuty na raz
     let bestScore = -1
     let bestPlayer: Player | null = null
 
-    // Które atrybuty gracz już zna (trafił w poprzednich próbach)?
     const known = knownAttributes
+    const knownCount = Object.values(known).filter(Boolean).length
+
+    // Ile nowych atrybutów chcemy ujawnić na raz?
+    // Mało znanych → 1-2 nowe (nie zdradzaj za dużo)
+    // Dużo znanych → więcej nowych OK (pomóż domknąć)
+    const targetNewReveals = knownCount <= 2 ? 1 : knownCount <= 4 ? 2 : 3
 
     for (const raw of candidates) {
       const clubData = raw.clubs
@@ -119,42 +124,53 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
       } as Player
 
       const candidateCareer = careersByPlayer[candidate.id] || []
-
-      // Inteligentny scoring: +3 za ujawnienie nieznanego atrybutu, +1 za potwierdzenie znanego
-      let score = 0
-
       const candidateWithAge = withCurrentAge(candidate)
 
-      const matchNationality = candidateWithAge.nationality?.toLowerCase() === answerWithAge.nationality?.toLowerCase()
-      score += matchNationality ? (known.nationality ? 1 : 3) : 0
+      // Sprawdź które atrybuty ten kandydat ujawnia
+      const reveals: { isNew: boolean }[] = []
+
+      const matchNat = candidateWithAge.nationality?.toLowerCase() === answerWithAge.nationality?.toLowerCase()
+      if (matchNat) reveals.push({ isNew: !known.nationality })
 
       const matchStatus = candidateWithAge.is_active === answerWithAge.is_active
-      score += matchStatus ? (known.career_status ? 1 : 3) : 0
+      if (matchStatus) reveals.push({ isNew: !known.career_status })
 
-      const matchPosition = candidateWithAge.position?.toLowerCase() === answerWithAge.position?.toLowerCase()
-      score += matchPosition ? (known.position ? 1 : 3) : 0
+      const matchPos = candidateWithAge.position?.toLowerCase() === answerWithAge.position?.toLowerCase()
+      if (matchPos) reveals.push({ isNew: !known.position })
 
-      const matchDetailedPos = candidateWithAge.position_detailed && answerWithAge.position_detailed &&
+      const matchDetPos = candidateWithAge.position_detailed && answerWithAge.position_detailed &&
         candidateWithAge.position_detailed.toLowerCase() === answerWithAge.position_detailed.toLowerCase()
-      score += matchDetailedPos ? (known.position_detailed ? 1 : 3) : 0
+      if (matchDetPos) reveals.push({ isNew: !known.position_detailed })
 
       const candidateClubs = new Set(candidateCareer.map(c => c.club_name?.toLowerCase()).filter(Boolean))
       const answerClubs = new Set(answerCareer.map(c => c.club_name?.toLowerCase()).filter(Boolean))
       const matchClubs = candidateClubs.size > 0 && answerClubs.size > 0 &&
         Array.from(candidateClubs).some(c => answerClubs.has(c as string))
-      score += matchClubs ? (known.club_history ? 1 : 3) : 0
+      if (matchClubs) reveals.push({ isNew: !known.club_history })
 
       const candidateLeagues = new Set(candidateCareer.map(c => c.league?.toLowerCase()).filter(Boolean))
       const answerLeagues = new Set(answerCareer.map(c => c.league?.toLowerCase()).filter(Boolean))
       const matchLeagues = candidateLeagues.size > 0 &&
         Array.from(candidateLeagues).some(l => answerLeagues.has(l as string))
-      score += matchLeagues ? (known.league_history ? 1 : 3) : 0
+      if (matchLeagues) reveals.push({ isNew: !known.league_history })
 
+      let matchAge = false
       if (candidateWithAge.age != null && answerWithAge.age != null) {
-        const ageDiff = Math.abs(candidateWithAge.age - answerWithAge.age)
-        if (ageDiff === 0) score += known.age ? 1 : 3
-        else if (ageDiff <= 3) score += known.age ? 0.5 : 2
+        matchAge = Math.abs(candidateWithAge.age - answerWithAge.age) <= 3
+        if (matchAge) reveals.push({ isNew: !known.age })
       }
+
+      const newReveals = reveals.filter(r => r.isNew).length
+      const confirmedKnown = reveals.filter(r => !r.isNew).length
+
+      // Score: najlepiej = dokładnie targetNewReveals nowych
+      // Kara za zbyt wiele nowych (nie zdradzaj wszystkiego naraz)
+      // Bonus za potwierdzenie znanych (spójność)
+      const revealScore = newReveals > 0
+        ? 10 - Math.abs(newReveals - targetNewReveals) * 3  // blisko celu = lepiej
+        : 0
+      const confirmScore = confirmedKnown * 0.5
+      const score = revealScore + confirmScore
 
       if (score > bestScore) {
         bestScore = score
