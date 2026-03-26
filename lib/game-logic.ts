@@ -170,7 +170,7 @@ export function generateShareText(guesses: GuessResult[], date: string, won: boo
     ? `Zgadłem w ${guesses.length} ${guesses.length === 1 ? 'próbie' : 'próbach'}!`
     : `Nie udało się odgadnąć...`
 
-  return `🇵🇱 Polska Liga Guess #${puzzleNumber}\n${grid}\n${result}\nekstraklasaguess.pl`
+  return `🇵🇱 Znam Gościa #${puzzleNumber}\n${grid}\n${result}\nekstraklasaguess.pl`
 }
 
 // Inicjalizuj nowy stan gry

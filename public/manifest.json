@@ -1,6 +1,6 @@
 {
-  "name": "Ekstra Typ – Polska Liga Guess",
-  "short_name": "Ekstra Typ",
+  "name": "Znam Gościa – Polska Liga Guess",
+  "short_name": "Znam Gościa",
   "description": "Codzienny quiz piłkarski – zgadnij zawodnika Ekstraklasy!",
   "start_url": "/",
   "display": "standalone",

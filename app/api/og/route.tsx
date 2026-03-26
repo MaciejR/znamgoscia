@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
             marginBottom: '8px',
           }}
         >
-          Ekstra Typ
+          Znam Gościa
         </div>
 
         {/* Puzzle number */}

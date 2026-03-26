@@ -13,24 +13,24 @@ const inter = Inter({ subsets: ['latin', 'latin-ext'] })
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://ekstraklasaguess.pl'
 
 export const metadata: Metadata = {
-  title: 'Ekstra Typ - Codzienny Quiz Piłkarski',
+  title: 'Znam Gościa - Codzienny Quiz Piłkarski',
   description: 'Zgadnij dzisiejszego zawodnika polskiej Ekstraklasy! Codzienny quiz w stylu Wordle dla fanów polskiej piłki.',
   keywords: ['ekstraklasa', 'quiz', 'piłka nożna', 'wordle', 'polska', 'zawodnik'],
-  authors: [{ name: 'Ekstra Typ' }],
+  authors: [{ name: 'Znam Gościa' }],
   metadataBase: new URL(SITE_URL),
   alternates: { canonical: '/' },
   openGraph: {
-    title: 'Ekstra Typ - Codzienny Quiz Piłkarski',
+    title: 'Znam Gościa - Codzienny Quiz Piłkarski',
     description: 'Zgadnij dzisiejszego zawodnika polskiej Ekstraklasy!',
     type: 'website',
     locale: 'pl_PL',
-    siteName: 'Ekstra Typ',
+    siteName: 'Znam Gościa',
     url: SITE_URL,
-    images: [{ url: '/api/og', width: 1200, height: 630, alt: 'Ekstra Typ - Codzienny Quiz Piłkarski' }],
+    images: [{ url: '/api/og', width: 1200, height: 630, alt: 'Znam Gościa - Codzienny Quiz Piłkarski' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Ekstra Typ - Codzienny Quiz Piłkarski',
+    title: 'Znam Gościa - Codzienny Quiz Piłkarski',
     description: 'Zgadnij dzisiejszego zawodnika polskiej Ekstraklasy!',
     images: ['/api/og'],
   },
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Ekstra Typ',
+    title: 'Znam Gościa',
   },
 }
 
@@ -65,7 +65,7 @@ export default function RootLayout({
                 <Link href="/" className="flex items-center gap-2 group">
                   <Trophy className="w-8 h-8 text-ekstra-green group-hover:scale-110 transition-transform" />
                   <span className="text-xl font-bold bg-gradient-to-r from-ekstra-green to-green-600 bg-clip-text text-transparent">
-                    Ekstra Typ
+                    Znam Gościa
                   </span>
                 </Link>
 
