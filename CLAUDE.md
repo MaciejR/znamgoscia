@@ -1,8 +1,8 @@
-# Polska Liga Guess – CLAUDE.md
+# Znam Gościa – CLAUDE.md
 
 ## Przegląd projektu
 
-Gra typu Wordle dla piłkarzy polskiej ligi (wzorowana na manmark.co.uk). Każdego dnia jeden zagadkowy zawodnik. Gracz zgaduje wpisując nazwiska – po każdej próbie widzi 6 atrybutów i procent dopasowania. **Brak rejestracji i logowania** – wszystko anonimowo w przeglądarce (localStorage).
+Gra typu Wordle dla piłkarzy polskiej ligi (wzorowana na manmark.co.uk). Każdego dnia jeden zagadkowy zawodnik – aktywny lub historyczny. Gracz zgaduje wpisując nazwiska – po każdej próbie widzi 7 atrybutów i procent dopasowania. **Brak rejestracji i logowania** – wszystko anonimowo w przeglądarce (localStorage).
 
 ## Stack
 
@@ -10,23 +10,41 @@ Gra typu Wordle dla piłkarzy polskiej ligi (wzorowana na manmark.co.uk). Każde
 - **Styling:** Tailwind CSS
 - **Backend/DB:** Supabase (PostgreSQL)
 - **Hosting:** Vercel
+- **Scraping:** Python (httpx + BeautifulSoup) → Transfermarkt
 
-## Kluczowe zasady mechniki
+## Kluczowe zasady mechaniki
 
-1. **Brak limitu prób** – gracz może zgadywać dowolnie wiele razy (brak stanu `lost`).
-2. **6 atrybutów porównania** (układ 2×3):
+1. **Brak limitu prób** – gracz może zgadywać dowolnie wiele razy (stany: `playing`, `won`, `gave_up`).
+2. **7 atrybutów porównania** (układ 2×3 + wiek):
    - Obywatelstwo (`nationality`)
    - Status kariery (`career_status`): „Aktywny" / „Zakończona"
    - Pozycja (`position`): Bramkarz / Obrońca / Pomocnik / Napastnik
-   - Dokładna rola (`position_detailed`): np. „Lewy obrońca"
-   - Historia klubów (`club_history`): ✓ jeśli szukany grał w którymś klubie typowanego
-   - Historia lig (`league_history`): ✓ jeśli szukany grał w której ś lidze typowanego
-3. **Procent dopasowania** = liczba pasujących atrybutów / 6 × 100. Kolor: czerwony 0–30%, pomarańczowy 31–60%, zielony 61–100%. Poprawna odpowiedź = 100%.
+   - Dokładna rola (`position_detailed`): np. „Lewy obrońca", „Środkowy napastnik"
+   - Historia klubów (`club_history`): wyświetla **nazwy wspólnych klubów** (np. „Lech Poznań")
+   - Historia lig (`league_history`): wyświetla **nazwy wspólnych lig** (np. „PKO BP Ekstraklasa, Süper Lig")
+   - Wiek (`age`): exact = zielony, ±3 lata = żółty z kierunkiem ↑↓, dalej = czerwony
+3. **Procent dopasowania** = liczba pasujących atrybutów / 7 × 100. Kolor: czerwony 0–30%, pomarańczowy 31–60%, zielony 61–100%.
 4. **Karty prób** są rozwijane (ostatnia domyślnie otwarta, poprzednie zwinięte).
-5. **Stały pasek dolny** z polem tekstowym + przyciskiem „Zgadnij" (niebieski) + „Podpowiedź" (szary).
-6. **Podpowiedź** automatycznie wstawia zawodnika z największą liczbą wspólnych atrybutów z szukanym (kosztuje +1 próbę, oznaczana etykietą „Podpowiedź").
-7. **Panel statystyk dziennych** (na górze): „Twoje próby" (z localStorage) + „Śr. do wygranej" (z API `/api/stats?date=…`).
-8. **Udostępnianie** po wygranej: format `🇵🇱 Polska Liga Guess #N\n<emoji grid>\nZgadłem w X próbach!\nekstraklasaguess.pl`
+5. **Stały pasek dolny** z polem tekstowym + „Podpowiedź" (szary) + „Poddaj się" (czerwony).
+6. **Podpowiedź** – inteligentny system celowanych podpowiedzi:
+   - Analizuje które atrybuty gracz już zna (z poprzednich prób)
+   - Gracz wie mało (0–2) → ujawnia **1 nowy** atrybut
+   - Gracz wie średnio (3–4) → ujawnia **2 nowe** atrybuty
+   - Gracz wie dużo (5+) → ujawnia **3 nowe** atrybuty
+   - Kosztuje +1 próbę, oznaczana etykietą „Podpowiedź"
+7. **Poddaj się** – ujawnia odpowiedź z komunikatem „Jutro dasz radę!". Stan `gave_up` nie jest liczony jako wygrana.
+8. **Wiek obliczany dynamicznie** z `birth_date` (nie statyczny) – `withCurrentAge()` w `lib/utils.ts`.
+9. **Panel statystyk** (ikona 📊) – działa na każdej stronie dzięki `StatsContext`. Na stronie głównej `Game.tsx` renderuje własny modal ze świeżymi danymi; na podstronach `GlobalStatsModal` ładuje z localStorage.
+10. **Udostępnianie** po wygranej: format `🇵🇱 Znam Gościa #N\n<emoji grid>\nZgadłem w X próbach!\nekstraklasaguess.pl`
+
+## Pula zawodników
+
+- **5360 graczy** w bazie (aktywni + historyczni z historii Ekstraklasy)
+- **5275** z kompletem danych (age, position_detailed, nationality)
+- **5161** z `birth_date` (dynamiczny wiek), reszta fallback na statyczny `age`
+- **Wyszukiwanie** obejmuje wszystkich graczy; nieaktywni pokazują „Zakończona kariera"
+- **Daily player** wybierany z puli graczy z kompletem danych i min. 10 występów
+- **Dropdown search** pokazuje: imię i nazwisko, pozycja szczegółowa, flaga narodowości (bez zdjęcia, klubu)
 
 ## Schemat bazy danych (Supabase)
 
@@ -35,13 +53,18 @@ Gra typu Wordle dla piłkarzy polskiej ligi (wzorowana na manmark.co.uk). Każde
 |---|---|---|
 | `id` | int | PK |
 | `name` | text | Pełne imię i nazwisko |
+| `name_normalized` | text | Lowercase bez polskich znaków (do wyszukiwania) |
+| `birth_date` | date | Data urodzenia (do dynamicznego obliczania wieku) |
+| `age` | int | Wiek (fallback gdy brak birth_date) |
 | `nationality` | text | Kraj obywatelstwa |
-| `nationality_code` | text | Kod ISO (2 lub 3 litery) |
+| `nationality_code` | text | Kod ISO (3 litery) |
 | `position` | text | Bramkarz / Obronca / Pomocnik / Napastnik |
-| `position_detailed` | text | Dokładna rola |
+| `position_detailed` | text | Dokładna rola (po polsku) |
 | `is_active` | bool | Aktywny zawodnik |
 | `current_club_id` | int | FK → clubs.id |
 | `photo_url` | text | URL zdjęcia (ujawniane po odgadnięciu) |
+| `market_value` | int | Wartość rynkowa w EUR |
+| `transfermarkt_id` | text | ID na Transfermarkt |
 
 ### Tabela `clubs`
 | Kolumna | Typ |
@@ -49,7 +72,9 @@ Gra typu Wordle dla piłkarzy polskiej ligi (wzorowana na manmark.co.uk). Każde
 | `id` | int |
 | `name` | text |
 | `name_short` | text |
-| `league` | text | np. „Ekstraklasa", „Premier League" |
+| `league` | text |
+| `logo_url` | text |
+| `transfermarkt_id` | text |
 
 ### Tabela `career_history`
 | Kolumna | Typ |
@@ -58,13 +83,16 @@ Gra typu Wordle dla piłkarzy polskiej ligi (wzorowana na manmark.co.uk). Każde
 | `player_id` | int FK |
 | `club_id` | int FK (nullable) |
 | `club_name` | text |
+| `league` | text |
 | `season_start` | int |
 | `season_end` | int |
+| `appearances` | int |
+| `goals` | int |
 
 ### Tabela `daily_players`
 | Kolumna | Typ |
 |---|---|
-| `date` | date |
+| `date` | date (UNIQUE) |
 | `player_id` | int FK |
 
 ### Tabela `game_stats`
@@ -72,16 +100,56 @@ Anonimowe statystyki gier (session_id zamiast user_id dla gości).
 
 ## Routing
 
-Jedna strona – `/`. Brak dodatkowych widoków.
+| Ścieżka | Opis |
+|---|---|
+| `/` | Strona główna z grą dnia |
+| `/jak-grac` | Zasady gry |
+| `/archiwum` | Kalendarz z przeszłymi zagadkami (bez spoilerów) |
+| `/cwiczenia/[date]` | Tryb ćwiczeniowy (gra na wybraną datę, wyniki niezapisywane) |
 
 ## Lokalizacja stanu
 
-- Stan gry i statystyki gracza → `localStorage` (klucze: `ekstra-typ-game-state`, `ekstra-typ-stats`)
-- Statystyki globalne (śr. prób) → API `GET /api/stats?date=YYYY-MM-DD`
+- Stan gry dnia → `localStorage` klucz `ekstra-typ-game-state`
+- Stan ćwiczeń → `localStorage` klucz `ekstra-typ-practice-{date}`
+- Statystyki gracza → `localStorage` klucz `ekstra-typ-stats`
+- Session ID → `localStorage` klucz `ekstra-typ-session-id`
+- Statystyki globalne → API `GET /api/stats?date=YYYY-MM-DD`
+- Stats modal → `StatsContext` (React Context w `lib/stats-context.tsx`)
+
+## API
+
+| Endpoint | Metoda | Opis |
+|---|---|---|
+| `/api/daily?date=&reveal=` | GET | Piłkarz dnia. `reveal=true` ujawnia odpowiedź (dla „Poddaj się") |
+| `/api/guess` | POST | Sprawdź odpowiedź: `{ date, guessedPlayerId }` → `GuessResult` z 7 hintami |
+| `/api/search?q=&limit=` | GET | Wyszukiwanie graczy (wszyscy, nie tylko aktywni) |
+| `/api/hint` | POST | Inteligentna podpowiedź: `{ date, alreadyGuessedIds, knownAttributes }` |
+| `/api/stats` | GET/POST | Statystyki globalne |
+
+## Scraping (Python)
+
+Skrypty w `scripts/`:
+- `scrape_players.py` – import składów klubów Ekstraklasy z Transfermarkt
+- `scrape_careers.py` – import historii kariery (z opcją `--missing-league`)
+- `enrich_careers.py` – wzbogacanie kariery o ligi zagraniczne
+- `update_daily.py` – wybór piłkarza dnia (GitHub Actions cron 00:01 UTC)
+
+### Kluczowe parsowanie w `scraper/transfermarkt.py`:
+- **Pozycja** z `td.posrela` → wyciągana z drugiego wiersza `table.inline-table` (nie `get_text()` na całym td!)
+- **Wiek** z drugiego `td.zentriert` w wierszu (kolumna po numerze koszulki)
+- **birth_date** z `itemprop="birthDate"` na stronie profilu gracza
+
+## GitHub Actions
+
+- `daily-player.yml` – codziennie 00:01 UTC, wybiera piłkarza dnia (env: Preview)
+- `weekly-update.yml` – co niedzielę 03:00 UTC, aktualizuje składy z Transfermarkt (timeout 60 min)
 
 ## Ważne decyzje implementacyjne
 
-- **Brak auth w logice gry** – `Game.tsx` nie używa `useAuth`. Auth komponenty istnieją w projekcie ale nie blokują rozgrywki.
-- **CareerEntry.league** pobierane przez join z tabelą `clubs` przy zapytaniach do `career_history`.
-- **Hint API** (`/api/hint`) – szuka zawodnika z max wspólnych atrybutów z szukanym, bierze pod uwagę `alreadyGuessedIds` przesłane w body.
-- **GuessResult** – expandable card, domyślnie rozwinięta tylko ostatnia próba.
+- **Brak auth w logice gry** – `Game.tsx` nie używa `useAuth`. Auth komponenty istnieją ale nie blokują rozgrywki.
+- **CareerEntry.league** – kolumna bezpośrednio w tabeli `career_history` (migracja 003).
+- **Wiek** – obliczany dynamicznie z `birth_date` przez `withCurrentAge()`, fallback na statyczny `age`.
+- **Podpowiedź** – celowana, ujawnia 1–3 nowe atrybuty w zależności od postępu gracza.
+- **Archiwum** – nie spoileruje odpowiedzi; pokazuje zawodnika tylko gdy gracz wygrał daną datę.
+- **Stats icon** – działa globalnie przez `StatsContext` + `GlobalStatsModal`, nie przez `getElementById`.
+- **localStorage keys** zachowane jako `ekstra-typ-*` (kompatybilność wsteczna po rebrandingu).
