@@ -409,17 +409,22 @@ class TransfermarktScraper:
                     season_end = int(end)
 
                     # Liga/rozgrywki – link z /wettbewerb/ w href
+                    # Uwaga: pomijamy linki do profili graczy (/spieler/)
                     league_name = ''
                     for link in row.find_all('a'):
                         href = link.get('href', '')
+                        if '/spieler/' in href or '/profil/' in href:
+                            continue
                         if '/wettbewerb/' in href or '/pokalwettbewerb/' in href:
                             league_name = (link.get('title', '') or link.get_text(strip=True)).strip()
                             break
 
-                    # Klub – link z /verein/ w href, nazwa w atrybucie title
+                    # Klub – link z /verein/ w href (nie /spieler/)
                     club_name = ''
                     for link in row.find_all('a'):
                         href = link.get('href', '')
+                        if '/spieler/' in href or '/profil/' in href:
+                            continue
                         if '/verein/' in href:
                             club_name = link.get('title', '').strip()
                             break
