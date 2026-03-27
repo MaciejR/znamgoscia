@@ -57,26 +57,10 @@ def main():
 
         if existing:
             player = existing.get('players', {})
-            player_id = existing.get('player_id')
             print(f"\nDzisiejszy zawodnik już ustawiony:")
             print(f"  Imię: {player.get('name')}")
-            print(f"  ID: {player_id}")
-
-            # Sprawdź czy podpowiedzi już wygenerowane
-            hints = db.client.table('daily_hints').select('id').eq(
-                'date', today.isoformat()
-            ).limit(1).execute()
-
-            if hints.data:
-                print("\nPodpowiedzi już wygenerowane. Nic do zrobienia.")
-            else:
-                print("\nBrak podpowiedzi — generuję...")
-                hints_count = precompute_hints(db, today, player_id)
-                if hints_count is not None:
-                    print(f"  ✓ Wygenerowano {hints_count} podpowiedzi")
-                else:
-                    print("  ✗ Błąd generowania podpowiedzi")
-
+            print(f"  ID: {existing.get('player_id')}")
+            print("\nNic do zrobienia.")
             return 0
 
         # Wybierz losowego zawodnika
