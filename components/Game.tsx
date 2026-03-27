@@ -264,6 +264,10 @@ export default function Game({ practiceDate }: GameProps = {}) {
         localStorage.setItem(practiceStateKey!, JSON.stringify(newState))
       } else {
         saveGameState(newState)
+
+        const newStats = updateStats(userStats, false, 0, gameState.date)
+        setUserStats(newStats)
+        saveUserStats(newStats)
       }
     } catch (err) {
       console.error('Error giving up:', err)
