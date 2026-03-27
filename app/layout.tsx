@@ -80,28 +80,7 @@ export default function RootLayout({
 
           <footer className="mt-auto py-6 border-t border-slate-200 dark:border-slate-700">
             <div className="max-w-4xl mx-auto px-4 text-center text-sm text-slate-500 dark:text-slate-400">
-              <p>
-                Dane zawodników z{' '}
-                <a
-                  href="https://www.transfermarkt.pl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-ekstra-green hover:underline"
-                >
-                  Transfermarkt
-                </a>
-              </p>
-              <p className="mt-1">
-                Inspiracja:{' '}
-                <a
-                  href="https://www.manmark.co.uk/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-ekstra-green hover:underline"
-                >
-                  ManMark
-                </a>
-              </p>
+              <p>© {new Date().getFullYear()} Znam Gościa</p>
             </div>
           </footer>
           <GlobalStatsModal />

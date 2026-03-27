@@ -1,8 +1,6 @@
-# Ekstra Typ - Codzienny Quiz Piłkarski
+# Znam Gościa - Codzienny Quiz Piłkarski
 
 Codzienny quiz w stylu Wordle, gdzie gracze zgadują zawodnika z polskiej Ekstraklasy. Po każdym strzale gracz otrzymuje kolorowe wskazówki dotyczące narodowości, pozycji, klubu, wieku i historii kariery.
-
-**Inspiracja:** [ManMark](https://www.manmark.co.uk/)
 
 ## Funkcje
 

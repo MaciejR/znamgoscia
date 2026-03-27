@@ -2,7 +2,7 @@
 
 ## Przegląd projektu
 
-Gra typu Wordle dla piłkarzy polskiej ligi (wzorowana na manmark.co.uk). Każdego dnia jeden zagadkowy zawodnik – aktywny lub historyczny. Gracz zgaduje wpisując nazwiska – po każdej próbie widzi 7 atrybutów i procent dopasowania. **Brak rejestracji i logowania** – wszystko anonimowo w przeglądarce (localStorage).
+Codzienny quiz piłkarski dla fanów polskiej ligi. Każdego dnia jeden zagadkowy zawodnik – aktywny lub historyczny. Gracz zgaduje wpisując nazwiska – po każdej próbie widzi 7 atrybutów i procent dopasowania. **Brak rejestracji i logowania** – wszystko anonimowo w przeglądarce (localStorage).
 
 ## Stack
 
@@ -10,7 +10,7 @@ Gra typu Wordle dla piłkarzy polskiej ligi (wzorowana na manmark.co.uk). Każde
 - **Styling:** Tailwind CSS
 - **Backend/DB:** Supabase (PostgreSQL)
 - **Hosting:** Vercel
-- **Scraping:** Python (httpx + BeautifulSoup) → Transfermarkt
+- **Scraping:** Python (httpx + BeautifulSoup)
 
 ## Kluczowe zasady mechaniki
 
@@ -64,7 +64,7 @@ Gra typu Wordle dla piłkarzy polskiej ligi (wzorowana na manmark.co.uk). Każde
 | `current_club_id` | int | FK → clubs.id |
 | `photo_url` | text | URL zdjęcia (ujawniane po odgadnięciu) |
 | `market_value` | int | Wartość rynkowa w EUR |
-| `transfermarkt_id` | text | ID na Transfermarkt |
+| `transfermarkt_id` | text | ID zewnętrzne |
 
 ### Tabela `clubs`
 | Kolumna | Typ |
@@ -129,7 +129,7 @@ Anonimowe statystyki gier (session_id zamiast user_id dla gości).
 ## Scraping (Python)
 
 Skrypty w `scripts/`:
-- `scrape_players.py` – import składów klubów Ekstraklasy z Transfermarkt
+- `scrape_players.py` – import składów klubów Ekstraklasy
 - `scrape_careers.py` – import historii kariery (z opcją `--missing-league`)
 - `enrich_careers.py` – wzbogacanie kariery o ligi zagraniczne
 - `update_daily.py` – wybór piłkarza dnia (GitHub Actions cron 00:01 UTC)
@@ -142,7 +142,7 @@ Skrypty w `scripts/`:
 ## GitHub Actions
 
 - `daily-player.yml` – codziennie 00:01 UTC, wybiera piłkarza dnia (env: Preview)
-- `weekly-update.yml` – co niedzielę 03:00 UTC, aktualizuje składy z Transfermarkt (timeout 60 min)
+- `weekly-update.yml` – co niedzielę 03:00 UTC, aktualizuje składy (timeout 60 min)
 
 ## Ważne decyzje implementacyjne
 
