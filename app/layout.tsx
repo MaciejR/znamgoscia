@@ -10,7 +10,7 @@ import GlobalStatsModal from '@/components/GlobalStatsModal'
 
 const inter = Inter({ subsets: ['latin', 'latin-ext'] })
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://ekstraklasaguess.pl'
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://znamgoscia.pl'
 
 export const metadata: Metadata = {
   title: 'Znam Gościa - Codzienny Quiz Piłkarski',

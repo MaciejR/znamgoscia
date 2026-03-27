@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
             color: '#475569',
           }}
         >
-          ekstraklasaguess.pl
+          znamgoscia.pl
         </div>
       </div>
     ),

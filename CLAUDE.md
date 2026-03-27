@@ -35,7 +35,7 @@ Codzienny quiz piłkarski dla fanów polskiej ligi. Każdego dnia jeden zagadkow
 7. **Poddaj się** – ujawnia odpowiedź z komunikatem „Jutro dasz radę!". Stan `gave_up` nie jest liczony jako wygrana.
 8. **Wiek obliczany dynamicznie** z `birth_date` (nie statyczny) – `withCurrentAge()` w `lib/utils.ts`.
 9. **Panel statystyk** (ikona 📊) – działa na każdej stronie dzięki `StatsContext`. Na stronie głównej `Game.tsx` renderuje własny modal ze świeżymi danymi; na podstronach `GlobalStatsModal` ładuje z localStorage.
-10. **Udostępnianie** po wygranej: format `🇵🇱 Znam Gościa #N\n<emoji grid>\nZgadłem w X próbach!\nekstraklasaguess.pl`
+10. **Udostępnianie** po wygranej: format `🇵🇱 Znam Gościa #N\n<emoji grid>\nZgadłem w X próbach!\nznamgoscia.pl`
 
 ## Pula zawodników
 
