@@ -223,18 +223,29 @@ export function createDefaultStats(): UserStats {
   }
 }
 
+// Sprawdź czy dwie daty są kolejnymi dniami
+function isConsecutiveDay(prev: string, current: string): boolean {
+  const prevDate = new Date(prev + 'T00:00:00')
+  const nextDay = new Date(prevDate)
+  nextDay.setDate(nextDay.getDate() + 1)
+  return nextDay.toISOString().slice(0, 10) === current
+}
+
 // Aktualizuj statystyki po grze
 export function updateStats(
   currentStats: UserStats,
   won: boolean,
-  guessCount: number
+  guessCount: number,
+  date?: string
 ): UserStats {
   const newStats = { ...currentStats }
+  const today = date || new Date().toISOString().slice(0, 10)
   newStats.gamesPlayed += 1
 
   if (won) {
     newStats.gamesWon += 1
-    newStats.currentStreak += 1
+    const streakContinues = newStats.lastPlayedDate && isConsecutiveDay(newStats.lastPlayedDate, today)
+    newStats.currentStreak = streakContinues ? newStats.currentStreak + 1 : 1
     newStats.maxStreak = Math.max(newStats.maxStreak, newStats.currentStreak)
     const idx = Math.min(guessCount - 1, newStats.guessDistribution.length - 1)
     if (idx >= 0) {
@@ -245,6 +256,7 @@ export function updateStats(
     newStats.currentStreak = 0
   }
 
+  newStats.lastPlayedDate = today
   return newStats
 }
 
