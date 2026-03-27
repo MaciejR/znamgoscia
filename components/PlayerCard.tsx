@@ -91,39 +91,52 @@ export default function PlayerCard({ player, won, guessCount }: PlayerCardProps)
                 </span>
               </div>
 
+              {/* Klub z herbem */}
+              {player.club_name && (
+                <div className="flex items-center justify-center gap-3 mb-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
+                  {player.club_logo ? (
+                    <Image
+                      src={player.club_logo}
+                      alt={player.club_name}
+                      width={40}
+                      height={40}
+                      className="w-10 h-10 object-contain"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 bg-slate-200 dark:bg-slate-600 rounded-lg flex items-center justify-center text-slate-400">
+                      <MapPin className="w-5 h-5" />
+                    </div>
+                  )}
+                  <div>
+                    <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">{player.club_name}</div>
+                    {player.club_league && (
+                      <div className="text-xs text-slate-500 dark:text-slate-400">{player.club_league}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Szczegóły */}
               <div className="grid grid-cols-2 gap-3">
                 <InfoItem
                   icon={<MapPin className="w-4 h-4" />}
                   label="Pozycja"
-                  value={player.position}
+                  value={player.position_detailed || player.position}
                 />
                 <InfoItem
                   icon={<Calendar className="w-4 h-4" />}
                   label="Wiek"
-                  value={`${player.age} lat`}
-                />
-                <InfoItem
-                  icon={
-                    player.club_logo ? (
-                      <Image
-                        src={player.club_logo}
-                        alt=""
-                        width={16}
-                        height={16}
-                        className="w-4 h-4 object-contain"
-                      />
-                    ) : (
-                      <div className="w-4 h-4 bg-slate-200 rounded" />
-                    )
-                  }
-                  label="Klub"
-                  value={player.club_name || 'Brak'}
+                  value={player.age ? `${player.age} lat` : '?'}
                 />
                 <InfoItem
                   icon={<DollarSign className="w-4 h-4" />}
                   label="Wartość"
                   value={formatMarketValue(player.market_value)}
+                />
+                <InfoItem
+                  icon={<Trophy className="w-4 h-4" />}
+                  label="Status"
+                  value={player.is_active ? 'Aktywny' : 'Zakończona'}
                 />
               </div>
 
