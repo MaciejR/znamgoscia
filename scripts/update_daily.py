@@ -18,9 +18,13 @@ from scraper.database import DatabaseManager
 def precompute_hints(db: DatabaseManager, for_date: date, player_id: int) -> int | None:
     """Wywołuje funkcję SQL precompute_daily_hints() dla danego dnia."""
     try:
+        env_val = os.environ.get('MIN_DAILY_APPEARANCES')
+        min_apps = int(env_val) if env_val and env_val.isdigit() else 10
+
         result = db.client.rpc('precompute_daily_hints', {
             'target_date': for_date.isoformat(),
             'answer_player_id': player_id,
+            'min_appearances': min_apps,
         }).execute()
         return result.data
     except Exception as e:

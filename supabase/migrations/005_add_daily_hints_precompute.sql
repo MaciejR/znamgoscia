@@ -19,7 +19,11 @@ CREATE POLICY "Allow public read access on daily_hints"
     USING (true);
 
 -- Funkcja do precomputowania podpowiedzi dla danego dnia
-CREATE OR REPLACE FUNCTION precompute_daily_hints(target_date DATE, answer_player_id INTEGER)
+CREATE OR REPLACE FUNCTION precompute_daily_hints(
+    target_date DATE,
+    answer_player_id INTEGER,
+    min_appearances INTEGER DEFAULT 10
+)
 RETURNS INTEGER AS $$
 DECLARE
     answer RECORD;
@@ -47,7 +51,7 @@ BEGIN
     answer_clubs := COALESCE(answer_clubs, ARRAY[]::TEXT[]);
     answer_leagues := COALESCE(answer_leagues, ARRAY[]::TEXT[]);
 
-    -- Iteruj po kandydatach (wykluczamy odpowiedź, wymagamy kompletnych danych)
+    -- Iteruj po kandydatach z min. liczbą występów, kompletne dane
     FOR candidate IN
         SELECT
             p.id,
@@ -66,6 +70,7 @@ BEGIN
           AND p.position_detailed IS NOT NULL
           AND p.nationality IS NOT NULL
         GROUP BY p.id
+        HAVING COALESCE(SUM(ch.appearances), 0) >= min_appearances
     LOOP
         matching_attrs := ARRAY[]::TEXT[];
 
