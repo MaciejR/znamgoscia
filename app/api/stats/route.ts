@@ -64,48 +64,38 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const date = searchParams.get('date')
 
-    if (date) {
-      // Statystyki dla konkretnego dnia — agregacja w PostgreSQL
-      const { data, error } = await supabase.rpc('get_daily_stats', {
-        target_date: date,
-      })
-
-      if (error) {
-        console.error('Error fetching daily stats:', error)
-        return NextResponse.json(
-          { error: 'Failed to fetch stats' },
-          { status: 500 }
-        )
-      }
-
-      const stats = data || {
-        totalGames: 0,
-        wonGames: 0,
-        winRate: 0,
-        avgGuesses: 0,
-        distribution: [0, 0, 0, 0, 0, 0, 0, 0],
-      }
-
-      return NextResponse.json({
-        date,
-        ...stats,
-      })
+    if (!date) {
+      return NextResponse.json(
+        { error: 'Missing required parameter: date' },
+        { status: 400 }
+      )
     }
 
-    // Ogólne statystyki — agregacja w PostgreSQL
-    const { data, error } = await supabase.rpc('get_global_stats')
+    // Statystyki dla konkretnego dnia — agregacja w PostgreSQL
+    const { data, error } = await supabase.rpc('get_daily_stats', {
+      target_date: date,
+    })
 
     if (error) {
-      console.error('Error fetching global stats:', error)
+      console.error('Error fetching daily stats:', error)
       return NextResponse.json(
         { error: 'Failed to fetch stats' },
         { status: 500 }
       )
     }
 
-    return NextResponse.json(
-      data || { totalGames: 0, wonGames: 0, winRate: 0 }
-    )
+    const stats = data || {
+      totalGames: 0,
+      wonGames: 0,
+      winRate: 0,
+      avgGuesses: 0,
+      distribution: [0, 0, 0, 0, 0, 0, 0, 0],
+    }
+
+    return NextResponse.json({
+      date,
+      ...stats,
+    })
 
   } catch (error) {
     console.error('Error in stats API:', error)

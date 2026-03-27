@@ -38,22 +38,3 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE;
 
--- Statystyki globalne (ogólne)
-CREATE OR REPLACE FUNCTION get_global_stats()
-RETURNS JSON AS $$
-DECLARE
-  result JSON;
-BEGIN
-  SELECT json_build_object(
-    'totalGames', COUNT(*),
-    'wonGames', COUNT(*) FILTER (WHERE won),
-    'winRate', CASE
-      WHEN COUNT(*) > 0 THEN ROUND((COUNT(*) FILTER (WHERE won))::numeric / COUNT(*) * 100)
-      ELSE 0
-    END
-  ) INTO result
-  FROM game_stats;
-
-  RETURN result;
-END;
-$$ LANGUAGE plpgsql STABLE;
