@@ -28,18 +28,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ players: cached.data })
     }
 
-    // Wyszukaj zawodników
+    // Wyszukaj zawodników (pobierz więcej, posortuj po relevance, obetnij)
     const { data, error } = await supabase
       .from('players')
       .select(`
         id,
         name,
         position_detailed,
-        nationality_code
+        nationality_code,
+        market_value
       `)
       .ilike('name_normalized', `%${normalizedQuery}%`)
-      .order('name')
-      .limit(limit)
+      .order('market_value', { ascending: false, nullsFirst: false })
+      .limit(limit * 5)
 
     if (error) {
       console.error('Search error:', error)
@@ -49,24 +50,22 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Formatuj wyniki
-    const players: SearchResult[] = (data || []).map(player => {
-      return {
-        id: player.id,
-        name: player.name,
-        position_detailed: player.position_detailed,
-        nationality_code: player.nationality_code,
-      }
-    })
-
-    // Sortuj - dokładne dopasowanie na początku
-    players.sort((a, b) => {
+    // Sortuj: exact match na początku, potem po market_value (znani wyżej)
+    const sorted = (data || []).sort((a, b) => {
       const aExact = normalizeString(a.name).startsWith(normalizedQuery)
       const bExact = normalizeString(b.name).startsWith(normalizedQuery)
       if (aExact && !bExact) return -1
       if (!aExact && bExact) return 1
-      return 0
+      return (b.market_value || 0) - (a.market_value || 0)
     })
+
+    // Formatuj i obetnij
+    const players: SearchResult[] = sorted.slice(0, limit).map(player => ({
+      id: player.id,
+      name: player.name,
+      position_detailed: player.position_detailed,
+      nationality_code: player.nationality_code,
+    }))
 
     // Zapisz w cache
     searchCache.set(cacheKey, { data: players, timestamp: Date.now() })
