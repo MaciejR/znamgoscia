@@ -4,11 +4,6 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'img.a.transfermarkt.technology',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
         hostname: 'tmssl.akamaized.net',
         pathname: '/**',
       },

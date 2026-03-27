@@ -62,21 +62,13 @@ export default function PlayerCard({ player, won, guessCount }: PlayerCardProps)
         >
           {/* Przód karty (dane zawodnika) */}
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg overflow-hidden border border-slate-100 dark:border-slate-700">
-            {/* Zdjęcie */}
-            <div className="relative h-48 sm:h-56 bg-gradient-to-b from-ekstra-green/20 to-ekstra-green/5">
-              {player.photo_url ? (
-                <Image
-                  src={player.photo_url}
-                  alt={player.name}
-                  fill
-                  className="object-contain object-bottom"
-                  priority
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <User className="w-24 h-24 text-slate-300 dark:text-slate-600" />
-                </div>
-              )}
+            {/* Awatar */}
+            <div className="relative h-48 sm:h-56 bg-gradient-to-b from-ekstra-green/20 to-ekstra-green/5 flex items-center justify-center">
+              <div className="w-28 h-28 rounded-full bg-ekstra-green/20 dark:bg-ekstra-green/30 flex items-center justify-center">
+                <span className="text-4xl font-bold text-ekstra-green">
+                  {player.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                </span>
+              </div>
             </div>
 
             {/* Dane */}

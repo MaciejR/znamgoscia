@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { GuessResult as GuessResultType } from '@/lib/types'
 import { getFlagEmoji } from '@/lib/utils'
 import { ChevronDown, ChevronUp, HelpCircle, Check, X, Info } from 'lucide-react'
-import Image from 'next/image'
+
 
 interface GuessResultProps {
   result: GuessResultType
@@ -74,21 +74,9 @@ export default function GuessResult({ result, isLast }: GuessResultProps) {
           {matchPercentage}%
         </div>
 
-        {/* Zdjęcie */}
-        <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-600 flex-shrink-0">
-          {guessedPlayer.photo_url ? (
-            <Image
-              src={guessedPlayer.photo_url}
-              alt={guessedPlayer.name}
-              width={40}
-              height={40}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs font-bold">
-              {guessedPlayer.name.slice(0, 1)}
-            </div>
-          )}
+        {/* Awatar z inicjałami */}
+        <div className="w-10 h-10 rounded-full overflow-hidden bg-ekstra-green/20 dark:bg-ekstra-green/30 flex-shrink-0 flex items-center justify-center text-ekstra-green font-bold text-sm">
+          {guessedPlayer.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
         </div>
 
         {/* Imię i flaga */}
