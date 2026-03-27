@@ -15,6 +15,19 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from scraper.database import DatabaseManager
 
 
+def precompute_hints(db: DatabaseManager, for_date: date, player_id: int) -> int | None:
+    """Wywołuje funkcję SQL precompute_daily_hints() dla danego dnia."""
+    try:
+        result = db.client.rpc('precompute_daily_hints', {
+            'target_date': for_date.isoformat(),
+            'answer_player_id': player_id,
+        }).execute()
+        return result.data
+    except Exception as e:
+        print(f"Error precomputing hints: {e}")
+        return None
+
+
 def main():
     """Główna funkcja"""
     print("=" * 60)
@@ -44,10 +57,26 @@ def main():
 
         if existing:
             player = existing.get('players', {})
+            player_id = existing.get('player_id')
             print(f"\nDzisiejszy zawodnik już ustawiony:")
             print(f"  Imię: {player.get('name')}")
-            print(f"  ID: {existing.get('player_id')}")
-            print("\nNic do zrobienia.")
+            print(f"  ID: {player_id}")
+
+            # Sprawdź czy podpowiedzi już wygenerowane
+            hints = db.client.table('daily_hints').select('id').eq(
+                'date', today.isoformat()
+            ).limit(1).execute()
+
+            if hints.data:
+                print("\nPodpowiedzi już wygenerowane. Nic do zrobienia.")
+            else:
+                print("\nBrak podpowiedzi — generuję...")
+                hints_count = precompute_hints(db, today, player_id)
+                if hints_count is not None:
+                    print(f"  ✓ Wygenerowano {hints_count} podpowiedzi")
+                else:
+                    print("  ✗ Błąd generowania podpowiedzi")
+
             return 0
 
         # Wybierz losowego zawodnika
@@ -65,14 +94,23 @@ def main():
         # Ustaw jako dziennego
         success = db.set_daily_player(player['id'], today)
 
-        if success:
-            print(f"\n✓ Zawodnik dnia ustawiony pomyślnie!")
-            print(f"  ID: {player['id']}")
-            print(f"  Imię: {player.get('name')}")
-            return 0
-        else:
+        if not success:
             print("\n✗ Błąd ustawiania zawodnika dnia")
             return 1
+
+        print(f"\n✓ Zawodnik dnia ustawiony pomyślnie!")
+        print(f"  ID: {player['id']}")
+        print(f"  Imię: {player.get('name')}")
+
+        # Precompute podpowiedzi dla dzisiejszego dnia
+        print("\nPrecompute podpowiedzi...")
+        hints_count = precompute_hints(db, today, player['id'])
+        if hints_count is not None:
+            print(f"  ✓ Wygenerowano {hints_count} podpowiedzi")
+        else:
+            print("  ✗ Błąd generowania podpowiedzi")
+
+        return 0
 
     except Exception as e:
         print(f"\nBŁĄD: {e}")
