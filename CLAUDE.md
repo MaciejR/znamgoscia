@@ -153,3 +153,16 @@ Skrypty w `scripts/`:
 - **Archiwum** – nie spoileruje odpowiedzi; pokazuje zawodnika tylko gdy gracz wygrał daną datę.
 - **Stats icon** – działa globalnie przez `StatsContext` + `GlobalStatsModal`, nie przez `getElementById`.
 - **localStorage keys** zachowane jako `ekstra-typ-*` (kompatybilność wsteczna po rebrandingu).
+
+## Środowiska (dev / prod)
+
+| Element | PROD | DEV |
+|---------|------|-----|
+| **Branch** | `main` | `dev` |
+| **Vercel** | Production deploy | Preview deploy (automatyczny) |
+| **Supabase** | `pujqllqolcxujfnltbxv` | `irlkfxzyxwgzwyuzrzrb` |
+
+- Push na `dev` → Vercel preview z DEV Supabase (env vars ustawione per environment w Vercel)
+- Push/merge na `main` → Vercel production z PROD Supabase
+- Workflow: pracuj na `dev`, gdy gotowe → PR `dev` → `main` → merge
+- Sync danych prod→dev: `python3 /tmp/sync_prod_to_dev.py` (skrypt jednorazowy, w razie potrzeby odtworzyć)
