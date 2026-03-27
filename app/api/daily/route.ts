@@ -105,12 +105,12 @@ export async function GET(request: NextRequest) {
       }
 
       // Unikalne kluby i ligi z kariery
-      const careerClubs = [...new Set(
+      const careerClubs = Array.from(new Set(
         (careerData || []).map(c => c.club_name).filter((n): n is string => Boolean(n))
-      )]
-      const careerLeagues = [...new Set(
+      ))
+      const careerLeagues = Array.from(new Set(
         (careerData || []).map(c => c.league).filter((l): l is string => Boolean(l))
-      )]
+      ))
 
       return NextResponse.json({
         date,
