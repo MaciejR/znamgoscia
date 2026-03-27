@@ -117,13 +117,34 @@ async function fetchPlayerWithClub(playerId: number): Promise<{ player: Player |
   const clubData = data.clubs
   const club = (Array.isArray(clubData) ? clubData[0] : clubData) as Record<string, unknown> | null
 
+  let clubName = club?.name as string | undefined
+  let clubShort = club?.name_short as string | undefined
+  let clubLeague = club?.league as string | undefined
+  let clubLogo = club?.logo_url as string | undefined
+
+  // Fallback: ostatni klub z kariery
+  if (!clubName) {
+    const { data: lastCareer } = await supabase
+      .from('career_history')
+      .select('club_name, league')
+      .eq('player_id', playerId)
+      .not('club_name', 'is', null)
+      .order('season_start', { ascending: false })
+      .limit(1)
+
+    if (lastCareer && lastCareer.length > 0) {
+      clubName = lastCareer[0].club_name
+      clubLeague = lastCareer[0].league
+    }
+  }
+
   return {
     player: {
       ...data,
-      club_name: club?.name as string | undefined,
-      club_short: club?.name_short as string | undefined,
-      club_league: club?.league as string | undefined,
-      club_logo: club?.logo_url as string | undefined,
+      club_name: clubName,
+      club_short: clubShort,
+      club_league: clubLeague,
+      club_logo: clubLogo,
     } as Player
   }
 }

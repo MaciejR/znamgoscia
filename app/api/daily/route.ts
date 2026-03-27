@@ -83,6 +83,27 @@ export async function GET(request: NextRequest) {
         nationality: player?.nationality,
       } as Player)
 
+      // Jeśli gracz nie ma klubu w tabeli clubs, pobierz ostatni z kariery
+      let clubName = club?.name as string | undefined
+      let clubShort = club?.name_short as string | undefined
+      let clubLeague = club?.league as string | undefined
+      let clubLogo = club?.logo_url as string | undefined
+
+      if (!clubName && player?.id) {
+        const { data: lastCareer } = await supabase
+          .from('career_history')
+          .select('club_name, league')
+          .eq('player_id', player.id as number)
+          .not('club_name', 'is', null)
+          .order('season_start', { ascending: false })
+          .limit(1)
+
+        if (lastCareer && lastCareer.length > 0) {
+          clubName = lastCareer[0].club_name
+          clubLeague = lastCareer[0].league
+        }
+      }
+
       return NextResponse.json({
         date,
         playerExists: true,
@@ -97,10 +118,10 @@ export async function GET(request: NextRequest) {
           jersey_number: player?.jersey_number,
           market_value: player?.market_value,
           photo_url: player?.photo_url,
-          club_name: club?.name,
-          club_short: club?.name_short,
-          club_league: club?.league,
-          club_logo: club?.logo_url,
+          club_name: clubName,
+          club_short: clubShort,
+          club_league: clubLeague,
+          club_logo: clubLogo,
         }
       })
     }
