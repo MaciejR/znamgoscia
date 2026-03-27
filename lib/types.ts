@@ -112,6 +112,7 @@ export interface UserStats {
   currentStreak: number
   maxStreak: number
   guessDistribution: number[]
+  lastPlayedDate?: string // YYYY-MM-DD
 }
 
 // Odpowiedź z API

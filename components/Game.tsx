@@ -155,7 +155,7 @@ export default function Game({ practiceDate }: GameProps = {}) {
         if (result.answer) setAnswerPlayer(result.answer)
 
         if (!isPractice) {
-          const newStats = updateStats(userStats, true, newGuesses.length)
+          const newStats = updateStats(userStats, true, newGuesses.length, gameState.date)
           setUserStats(newStats)
           saveUserStats(newStats)
 
