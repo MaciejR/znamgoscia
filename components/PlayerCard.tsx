@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Player } from '@/lib/types'
 import { getFlagEmoji, formatMarketValue } from '@/lib/utils'
-import { Trophy, User, MapPin, Calendar, DollarSign } from 'lucide-react'
+import { Trophy, User, MapPin, Calendar, DollarSign, Briefcase, Globe } from 'lucide-react'
 import Image from 'next/image'
 
 interface PlayerCardProps {
@@ -139,6 +139,40 @@ export default function PlayerCard({ player, won, guessCount }: PlayerCardProps)
                   value={player.is_active ? 'Aktywny' : 'Zakończona'}
                 />
               </div>
+
+              {/* Kluby z kariery */}
+              {player.career_clubs && player.career_clubs.length > 0 && (
+                <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Briefcase className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Kluby</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {player.career_clubs.map(club => (
+                      <span key={club} className="text-xs px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200">
+                        {club}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Ligi z kariery */}
+              {player.career_leagues && player.career_leagues.length > 0 && (
+                <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Globe className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Ligi</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {player.career_leagues.map(league => (
+                      <span key={league} className="text-xs px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200">
+                        {league}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Numer na koszulce */}
               {player.jersey_number && (

@@ -89,20 +89,28 @@ export async function GET(request: NextRequest) {
       let clubLeague = club?.league as string | undefined
       let clubLogo = club?.logo_url as string | undefined
 
-      if (!clubName && player?.id) {
-        const { data: lastCareer } = await supabase
-          .from('career_history')
-          .select('club_name, league')
-          .eq('player_id', player.id as number)
-          .not('club_name', 'is', null)
-          .order('season_start', { ascending: false })
-          .limit(1)
+      // Pobierz pełną historię kariery
+      const { data: careerData } = await supabase
+        .from('career_history')
+        .select('club_name, league')
+        .eq('player_id', player.id as number)
+        .order('season_start', { ascending: false })
 
-        if (lastCareer && lastCareer.length > 0) {
-          clubName = lastCareer[0].club_name
-          clubLeague = lastCareer[0].league
+      if (!clubName && careerData && careerData.length > 0) {
+        const firstWithClub = careerData.find(c => c.club_name)
+        if (firstWithClub) {
+          clubName = firstWithClub.club_name
+          clubLeague = firstWithClub.league
         }
       }
+
+      // Unikalne kluby i ligi z kariery
+      const careerClubs = [...new Set(
+        (careerData || []).map(c => c.club_name).filter((n): n is string => Boolean(n))
+      )]
+      const careerLeagues = [...new Set(
+        (careerData || []).map(c => c.league).filter((l): l is string => Boolean(l))
+      )]
 
       return NextResponse.json({
         date,
@@ -122,6 +130,8 @@ export async function GET(request: NextRequest) {
           club_short: clubShort,
           club_league: clubLeague,
           club_logo: clubLogo,
+          career_clubs: careerClubs,
+          career_leagues: careerLeagues,
         }
       })
     }

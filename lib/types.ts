@@ -31,6 +31,9 @@ export interface Player {
   club_short?: string
   club_league?: string
   club_logo?: string
+  // Career summary (populated on reveal/correct guess)
+  career_clubs?: string[]
+  career_leagues?: string[]
 }
 
 // Pozycje (uproszczone)

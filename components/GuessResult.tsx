@@ -181,7 +181,7 @@ function AttributeCell({ label, tooltip, hint }: AttributeCellProps) {
       </div>
 
       {/* Wartość + strzałka kierunku */}
-      <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate flex items-center gap-1">
+      <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-1 flex-wrap">
         {String(hint.value) || '–'}
         {directionArrow && (
           <span className={`font-bold ${isClose ? 'text-close' : 'text-wrong'}`}>

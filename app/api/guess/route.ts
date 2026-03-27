@@ -68,6 +68,16 @@ export async function POST(request: NextRequest) {
       answerCareer
     )
 
+    // Przy poprawnej odpowiedzi dodaj kariery do answer
+    if (result.correct && result.answer) {
+      result.answer.career_clubs = [...new Set(
+        answerCareer.map(c => c.club_name).filter((n): n is string => Boolean(n))
+      )]
+      result.answer.career_leagues = [...new Set(
+        answerCareer.map(c => c.league).filter((l): l is string => Boolean(l))
+      )]
+    }
+
     return NextResponse.json(result)
 
   } catch (error) {
