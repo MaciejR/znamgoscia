@@ -15,6 +15,23 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from scraper.database import DatabaseManager
 
 
+def precompute_hints(db: DatabaseManager, for_date: date, player_id: int) -> int | None:
+    """Wywołuje funkcję SQL precompute_daily_hints() dla danego dnia."""
+    try:
+        env_val = os.environ.get('MIN_DAILY_APPEARANCES')
+        min_apps = int(env_val) if env_val and env_val.isdigit() else 10
+
+        result = db.client.rpc('precompute_daily_hints', {
+            'target_date': for_date.isoformat(),
+            'answer_player_id': player_id,
+            'min_appearances': min_apps,
+        }).execute()
+        return result.data
+    except Exception as e:
+        print(f"Error precomputing hints: {e}")
+        return None
+
+
 def main():
     """Główna funkcja"""
     print("=" * 60)
@@ -65,14 +82,23 @@ def main():
         # Ustaw jako dziennego
         success = db.set_daily_player(player['id'], today)
 
-        if success:
-            print(f"\n✓ Zawodnik dnia ustawiony pomyślnie!")
-            print(f"  ID: {player['id']}")
-            print(f"  Imię: {player.get('name')}")
-            return 0
-        else:
+        if not success:
             print("\n✗ Błąd ustawiania zawodnika dnia")
             return 1
+
+        print(f"\n✓ Zawodnik dnia ustawiony pomyślnie!")
+        print(f"  ID: {player['id']}")
+        print(f"  Imię: {player.get('name')}")
+
+        # Precompute podpowiedzi dla dzisiejszego dnia
+        print("\nPrecompute podpowiedzi...")
+        hints_count = precompute_hints(db, today, player['id'])
+        if hints_count is not None:
+            print(f"  ✓ Wygenerowano {hints_count} podpowiedzi")
+        else:
+            print("  ✗ Błąd generowania podpowiedzi")
+
+        return 0
 
     except Exception as e:
         print(f"\nBŁĄD: {e}")
