@@ -58,7 +58,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
     const knownLeagueSet = new Set(knownLeagues.map(l => l.toLowerCase()))
 
     // Oblicz newReveals i confirmedKnown dla kandydata
-    function scoreCandidate(hint: typeof available[0]) {
+    const scoreCandidate = (hint: typeof available[0]) => {
       const attrs: string[] = hint.matching_attributes || []
       const matchingClubs: string[] = hint.matching_clubs || []
       const matchingLeagues: string[] = hint.matching_leagues || []
