@@ -7,7 +7,7 @@ const POSITION_DETAILED_NORMALIZE: Record<string, string> = {
   'Prawe skrzydło': 'Prawy pomocnik',
 }
 
-function normalizePositionDetailed(pos: string | null): string | null {
+export function normalizePositionDetailed(pos: string | null): string | null {
   if (!pos) return pos
   return POSITION_DETAILED_NORMALIZE[pos] ?? pos
 }
