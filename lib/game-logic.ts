@@ -1,5 +1,5 @@
 import { Player, CareerEntry, GuessResult, HintStatus, Hint, GameState, UserStats } from './types'
-import { getTodayDate } from './utils'
+import { getTodayDate, isLeagueIncluded } from './utils'
 
 // Porównaj strzał z odpowiedzią – 7 atrybutów
 export function compareGuess(
@@ -119,10 +119,10 @@ function compareHistoryClubs(guessCareer: CareerEntry[], answerCareer: CareerEnt
 function compareHistoryLeagues(guessCareer: CareerEntry[], answerCareer: CareerEntry[]): Hint {
   const guessLeaguesMap = new Map<string, string>()
   for (const c of guessCareer) {
-    if (c.league) guessLeaguesMap.set(c.league.toLowerCase(), c.league)
+    if (c.league && isLeagueIncluded(c.league)) guessLeaguesMap.set(c.league.toLowerCase(), c.league)
   }
   const answerLeagues = new Set(
-    answerCareer.map(c => c.league?.toLowerCase()).filter((l): l is string => Boolean(l))
+    answerCareer.filter(c => c.league && isLeagueIncluded(c.league)).map(c => c.league!.toLowerCase())
   )
 
   const commonLeagues: string[] = []

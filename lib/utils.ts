@@ -76,6 +76,50 @@ export const POSITION_MAP: Record<string, Position> = {
   'Napastnik': 'Napastnik',
 }
 
+// Filtrowanie lig – pomijamy puchary krajowe i rozgrywki młodzieżowe poniżej U-19
+const DOMESTIC_CUP_PATTERNS = [
+  /puchar/i,
+  /cup/i,
+  /pokal/i,
+  /copa/i,
+  /coppa/i,
+  /coupe/i,
+  /taca/i,
+  /taça/i,
+]
+
+const INTERNATIONAL_PATTERNS = [
+  /liga mistrz/i,
+  /liga europ/i,
+  /liga konferencji/i,
+  /champions league/i,
+  /europa league/i,
+  /conference league/i,
+  /uefa/i,
+  /puchar zdobywc/i,
+  /superpuchar europ/i,
+  /intercontinental/i,
+  /puchar intertoto/i,
+]
+
+const YOUTH_BELOW_U19 = /\bu[- ]?(1[0-8]|[1-9])\b/i
+
+export function isLeagueIncluded(league: string): boolean {
+  if (!league) return false
+
+  // Rozgrywki młodzieżowe poniżej U-19 – wyklucz
+  if (YOUTH_BELOW_U19.test(league)) return false
+
+  // Puchary – sprawdź czy krajowy
+  const isCup = DOMESTIC_CUP_PATTERNS.some(p => p.test(league))
+  if (isCup) {
+    // Zachowaj jeśli międzynarodowy
+    return INTERNATIONAL_PATTERNS.some(p => p.test(league))
+  }
+
+  return true
+}
+
 // Mapowanie kodów narodowości na flagi emoji (z cache)
 const FLAG_CODE_MAP: Record<string, string> = {
   'POL': 'PL', 'BRA': 'BR', 'ARG': 'AR', 'ESP': 'ES', 'POR': 'PT',
