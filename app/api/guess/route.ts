@@ -38,10 +38,12 @@ export async function POST(request: NextRequest) {
 
     const answerPlayerId = dailyPlayer.player_id
 
-    // Pobierz dane obu zawodników równolegle
-    const [guessedResult, answerResult] = await Promise.all([
+    // Pobierz dane obu zawodników + kariery w jednym Promise.all (4 queries równolegle)
+    const [guessedResult, answerResult, guessCareer, answerCareer] = await Promise.all([
       fetchPlayerWithClub(guessedPlayerId),
       fetchPlayerWithClub(answerPlayerId),
+      fetchCareerHistory(guessedPlayerId),
+      fetchCareerHistory(answerPlayerId),
     ])
 
     if (!guessedResult.player || !answerResult.player) {
@@ -53,12 +55,6 @@ export async function POST(request: NextRequest) {
 
     const guessedPlayer = withCurrentAge(guessedResult.player)
     const answerPlayer = withCurrentAge(answerResult.player)
-
-    // Pobierz historię kariery obu zawodników
-    const [guessCareer, answerCareer] = await Promise.all([
-      fetchCareerHistory(guessedPlayerId),
-      fetchCareerHistory(answerPlayerId),
-    ])
 
     // Porównaj strzał z odpowiedzią
     const result = compareGuess(

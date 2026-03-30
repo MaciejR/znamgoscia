@@ -91,10 +91,13 @@ export async function GET(request: NextRequest) {
       distribution: [0, 0, 0, 0, 0, 0, 0, 0],
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       date,
       ...stats,
     })
+    // Stats dzienne zmieniają się rzadko — cache 5 minut
+    response.headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=60')
+    return response
 
   } catch (error) {
     console.error('Error in stats API:', error)

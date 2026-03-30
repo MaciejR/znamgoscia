@@ -41,7 +41,7 @@ export default function GuessInput({ onGuess, disabled }: GuessInputProps) {
       } finally {
         setIsLoading(false)
       }
-    }, 300),
+    }, 200),
     []
   )
 

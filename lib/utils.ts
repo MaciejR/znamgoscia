@@ -53,33 +53,37 @@ export const POSITION_MAP: Record<string, Position> = {
   'Napastnik': 'Napastnik',
 }
 
-// Mapowanie kodów narodowości na flagi emoji
+// Mapowanie kodów narodowości na flagi emoji (z cache)
+const FLAG_CODE_MAP: Record<string, string> = {
+  'POL': 'PL', 'BRA': 'BR', 'ARG': 'AR', 'ESP': 'ES', 'POR': 'PT',
+  'GER': 'DE', 'FRA': 'FR', 'ITA': 'IT', 'ENG': 'GB', 'NED': 'NL',
+  'BEL': 'BE', 'CRO': 'HR', 'SRB': 'RS', 'UKR': 'UA', 'CZE': 'CZ',
+  'SVK': 'SK', 'SLO': 'SI', 'AUT': 'AT', 'SUI': 'CH', 'GRE': 'GR',
+  'TUR': 'TR', 'ROU': 'RO', 'HUN': 'HU', 'BUL': 'BG', 'SWE': 'SE',
+  'NOR': 'NO', 'DEN': 'DK', 'FIN': 'FI', 'ISL': 'IS', 'WAL': 'GB',
+  'SCO': 'GB', 'NIR': 'GB', 'IRL': 'IE', 'RUS': 'RU', 'USA': 'US',
+  'MEX': 'MX', 'COL': 'CO', 'CHI': 'CL', 'URU': 'UY', 'PAR': 'PY',
+  'PER': 'PE', 'ECU': 'EC', 'VEN': 'VE', 'BOL': 'BO', 'JPN': 'JP',
+  'KOR': 'KR', 'CHN': 'CN', 'AUS': 'AU', 'NZL': 'NZ', 'RSA': 'ZA',
+  'NGA': 'NG', 'GHA': 'GH', 'SEN': 'SN', 'CMR': 'CM', 'CIV': 'CI',
+  'MAR': 'MA', 'TUN': 'TN', 'ALG': 'DZ', 'EGY': 'EG',
+}
+const flagCache = new Map<string, string>()
+
 export function getFlagEmoji(countryCode: string | null): string {
   if (!countryCode || countryCode.length !== 2 && countryCode.length !== 3) {
     return '🏳️'
   }
 
-  // Konwersja 3-literowych kodów na 2-literowe (najpopularniejsze)
-  const codeMap: Record<string, string> = {
-    'POL': 'PL', 'BRA': 'BR', 'ARG': 'AR', 'ESP': 'ES', 'POR': 'PT',
-    'GER': 'DE', 'FRA': 'FR', 'ITA': 'IT', 'ENG': 'GB', 'NED': 'NL',
-    'BEL': 'BE', 'CRO': 'HR', 'SRB': 'RS', 'UKR': 'UA', 'CZE': 'CZ',
-    'SVK': 'SK', 'SLO': 'SI', 'AUT': 'AT', 'SUI': 'CH', 'GRE': 'GR',
-    'TUR': 'TR', 'ROU': 'RO', 'HUN': 'HU', 'BUL': 'BG', 'SWE': 'SE',
-    'NOR': 'NO', 'DEN': 'DK', 'FIN': 'FI', 'ISL': 'IS', 'WAL': 'GB',
-    'SCO': 'GB', 'NIR': 'GB', 'IRL': 'IE', 'RUS': 'RU', 'USA': 'US',
-    'MEX': 'MX', 'COL': 'CO', 'CHI': 'CL', 'URU': 'UY', 'PAR': 'PY',
-    'PER': 'PE', 'ECU': 'EC', 'VEN': 'VE', 'BOL': 'BO', 'JPN': 'JP',
-    'KOR': 'KR', 'CHN': 'CN', 'AUS': 'AU', 'NZL': 'NZ', 'RSA': 'ZA',
-    'NGA': 'NG', 'GHA': 'GH', 'SEN': 'SN', 'CMR': 'CM', 'CIV': 'CI',
-    'MAR': 'MA', 'TUN': 'TN', 'ALG': 'DZ', 'EGY': 'EG',
-  }
+  const cached = flagCache.get(countryCode)
+  if (cached) return cached
 
-  const code = countryCode.length === 3 ? (codeMap[countryCode.toUpperCase()] || countryCode.slice(0, 2)) : countryCode
-
-  // Konwersja kodu na emoji flagi
+  const code = countryCode.length === 3 ? (FLAG_CODE_MAP[countryCode.toUpperCase()] || countryCode.slice(0, 2)) : countryCode
   const codePoints = code.toUpperCase().split('').map(char => 127397 + char.charCodeAt(0))
-  return String.fromCodePoint(...codePoints)
+  const emoji = String.fromCodePoint(...codePoints)
+
+  flagCache.set(countryCode, emoji)
+  return emoji
 }
 
 // Formatowanie wartości rynkowej
