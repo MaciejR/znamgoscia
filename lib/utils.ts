@@ -44,7 +44,7 @@ export const POSITION_DETAILED_MAP: Record<string, string> = {
   'Right Midfield': 'Prawy pomocnik',
   'Left Winger': 'Lewe skrzydło',
   'Right Winger': 'Prawe skrzydło',
-  'Second Striker': 'Cofnięty napastnik',
+  'Second Striker': 'Środkowy napastnik',
   'Centre-Forward': 'Środkowy napastnik',
   'Bramkarz': 'Bramkarz',
   'Środkowy obrońca': 'Środkowy obrońca',
@@ -55,9 +55,9 @@ export const POSITION_DETAILED_MAP: Record<string, string> = {
   'Ofensywny pomocnik': 'Ofensywny pomocnik',
   'Lewy pomocnik': 'Lewy pomocnik',
   'Prawy pomocnik': 'Prawy pomocnik',
-  'Lewe skrzydło': 'Lewe skrzydło',
-  'Prawe skrzydło': 'Prawe skrzydło',
-  'Cofnięty napastnik': 'Cofnięty napastnik',
+  'Lewe skrzydło': 'Lewy pomocnik',
+  'Prawe skrzydło': 'Prawy pomocnik',
+  'Cofnięty napastnik': 'Środkowy napastnik',
   'Środkowy napastnik': 'Środkowy napastnik',
 }
 

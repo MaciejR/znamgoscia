@@ -65,7 +65,7 @@ POSITION_DETAILED_MAP = {
     'Right Midfield': 'Prawy pomocnik',
     'Left Winger': 'Lewe skrzydło',
     'Right Winger': 'Prawe skrzydło',
-    'Second Striker': 'Cofnięty napastnik',
+    'Second Striker': 'Środkowy napastnik',
     'Centre-Forward': 'Środkowy napastnik',
     # Polskie warianty (normalizacja do jednego formatu)
     'Bramkarz': 'Bramkarz',
@@ -77,9 +77,9 @@ POSITION_DETAILED_MAP = {
     'Ofensywny pomocnik': 'Ofensywny pomocnik',
     'Lewy pomocnik': 'Lewy pomocnik',
     'Prawy pomocnik': 'Prawy pomocnik',
-    'Lewe skrzydło': 'Lewe skrzydło',
-    'Prawe skrzydło': 'Prawe skrzydło',
-    'Cofnięty napastnik': 'Cofnięty napastnik',
+    'Lewe skrzydło': 'Lewy pomocnik',
+    'Prawe skrzydło': 'Prawy pomocnik',
+    'Cofnięty napastnik': 'Środkowy napastnik',
     'Środkowy napastnik': 'Środkowy napastnik',
 }
 
