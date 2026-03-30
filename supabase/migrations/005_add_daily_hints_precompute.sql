@@ -76,41 +76,41 @@ BEGIN
 
         -- Nationality
         IF lower(candidate.nationality) = lower(answer.nationality) THEN
-            matching_attrs := matching_attrs || 'nationality';
+            matching_attrs := array_append(matching_attrs, 'nationality');
         END IF;
 
         -- Career status
         IF candidate.is_active = answer.is_active THEN
-            matching_attrs := matching_attrs || 'career_status';
+            matching_attrs := array_append(matching_attrs, 'career_status');
         END IF;
 
         -- Position
         IF lower(candidate.position) = lower(answer.position) THEN
-            matching_attrs := matching_attrs || 'position';
+            matching_attrs := array_append(matching_attrs, 'position');
         END IF;
 
         -- Position detailed
         IF candidate.position_detailed IS NOT NULL AND answer.position_detailed IS NOT NULL
            AND lower(candidate.position_detailed) = lower(answer.position_detailed) THEN
-            matching_attrs := matching_attrs || 'position_detailed';
+            matching_attrs := array_append(matching_attrs, 'position_detailed');
         END IF;
 
         -- Club history
         IF candidate.clubs IS NOT NULL AND answer_clubs != ARRAY[]::TEXT[]
            AND candidate.clubs && answer_clubs THEN
-            matching_attrs := matching_attrs || 'club_history';
+            matching_attrs := array_append(matching_attrs, 'club_history');
         END IF;
 
         -- League history
         IF candidate.leagues IS NOT NULL AND answer_leagues != ARRAY[]::TEXT[]
            AND candidate.leagues && answer_leagues THEN
-            matching_attrs := matching_attrs || 'league_history';
+            matching_attrs := array_append(matching_attrs, 'league_history');
         END IF;
 
         -- Age (±3 lata)
         IF candidate.age IS NOT NULL AND answer.age IS NOT NULL
            AND ABS(candidate.age - answer.age) <= 3 THEN
-            matching_attrs := matching_attrs || 'age';
+            matching_attrs := array_append(matching_attrs, 'age');
         END IF;
 
         -- Dodaj tylko jeśli ma przynajmniej 1 pasujący atrybut
