@@ -1,4 +1,4 @@
-import { Player, Position } from './types'
+import { Player } from './types'
 
 // Oblicz aktualny wiek z daty urodzenia (lub użyj statycznego age jako fallback)
 export function withCurrentAge<T extends Player>(player: T): T {
@@ -29,51 +29,6 @@ export function normalizePolish(str: string): string {
 // Normalizacja pełna (lowercase + bez polskich znaków)
 export function normalizeString(str: string): string {
   return normalizePolish(str).toLowerCase().trim()
-}
-
-// Mapowanie szczegółowych pozycji na ustandaryzowane polskie nazwy
-export const POSITION_DETAILED_MAP: Record<string, string> = {
-  'Bramkarz': 'Bramkarz',
-  'Środkowy obrońca': 'Środkowy obrońca',
-  'Lewy obrońca': 'Lewy obrońca',
-  'Prawy obrońca': 'Prawy obrońca',
-  'Defensywny pomocnik': 'Defensywny pomocnik',
-  'Środkowy pomocnik': 'Środkowy pomocnik',
-  'Ofensywny pomocnik': 'Ofensywny pomocnik',
-  'Lewy pomocnik': 'Lewy pomocnik',
-  'Prawy pomocnik': 'Prawy pomocnik',
-  'Lewe skrzydło': 'Lewy pomocnik',
-  'Prawe skrzydło': 'Prawy pomocnik',
-  'Cofnięty napastnik': 'Środkowy napastnik',
-  'Środkowy napastnik': 'Środkowy napastnik',
-}
-
-export function normalizePositionDetailed(posText: string | null): string | null {
-  if (!posText) return null
-  const trimmed = posText.trim()
-  return POSITION_DETAILED_MAP[trimmed] ?? trimmed
-}
-
-// Mapowanie pozycji z angielskiego na polski
-export const POSITION_MAP: Record<string, Position> = {
-  'Goalkeeper': 'Bramkarz',
-  'Centre-Back': 'Obronca',
-  'Left-Back': 'Obronca',
-  'Right-Back': 'Obronca',
-  'Defensive Midfield': 'Pomocnik',
-  'Central Midfield': 'Pomocnik',
-  'Attacking Midfield': 'Pomocnik',
-  'Left Midfield': 'Pomocnik',
-  'Right Midfield': 'Pomocnik',
-  'Left Winger': 'Pomocnik',
-  'Right Winger': 'Pomocnik',
-  'Centre-Forward': 'Napastnik',
-  'Second Striker': 'Napastnik',
-  // Polish variants
-  'Bramkarz': 'Bramkarz',
-  'Obrońca': 'Obronca',
-  'Pomocnik': 'Pomocnik',
-  'Napastnik': 'Napastnik',
 }
 
 // Filtrowanie lig – pomijamy puchary krajowe i rozgrywki młodzieżowe poniżej U-19
