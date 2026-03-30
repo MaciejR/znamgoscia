@@ -33,12 +33,16 @@ interface DailyCache {
   answerPlayerId: number
   answerPlayer: Player
   answerCareer: CareerEntry[]
+  answerUniqueClubs: string[]
+  answerUniqueLeagues: string[]
+  timestamp: number
 }
 
 let dailyCache: DailyCache | null = null
+const DAILY_CACHE_TTL = 5 * 60 * 1000 // 5 minut
 
 async function getDailyCache(date: string): Promise<DailyCache | null> {
-  if (dailyCache && dailyCache.date === date) {
+  if (dailyCache && dailyCache.date === date && Date.now() - dailyCache.timestamp < DAILY_CACHE_TTL) {
     return dailyCache
   }
 
@@ -69,12 +73,22 @@ async function getDailyCache(date: string): Promise<DailyCache | null> {
 
   if (!answerResult.player) return null
 
+  const answerUniqueClubs = Array.from(new Set(
+    answerCareer.map(c => c.club_name).filter((n): n is string => Boolean(n))
+  ))
+  const answerUniqueLeagues = Array.from(new Set(
+    answerCareer.map(c => c.league).filter((l): l is string => Boolean(l))
+  ))
+
   dailyCache = {
     date,
     hints: hintsResult.data as DailyHint[],
     answerPlayerId,
     answerPlayer: withCurrentAge(answerResult.player),
     answerCareer,
+    answerUniqueClubs,
+    answerUniqueLeagues,
+    timestamp: Date.now(),
   }
 
   return dailyCache
@@ -84,6 +98,7 @@ async function getDailyCache(date: string): Promise<DailyCache | null> {
 
 const playerCache = new Map<number, { player: Player; career: CareerEntry[]; timestamp: number }>()
 const PLAYER_CACHE_TTL = 60 * 60 * 1000 // 1 godzina
+const PLAYER_CACHE_MAX = 200
 
 async function getCachedPlayerData(playerId: number): Promise<{ player: Player; career: CareerEntry[] } | null> {
   const cached = playerCache.get(playerId)
@@ -101,12 +116,18 @@ async function getCachedPlayerData(playerId: number): Promise<{ player: Player; 
   const entry = { player: result.player, career, timestamp: Date.now() }
   playerCache.set(playerId, entry)
 
-  // Czyszczenie starych wpisów
-  if (playerCache.size > 200) {
+  // Evict: usuń przeterminowane, a jeśli dalej za dużo — najstarsze
+  if (playerCache.size > PLAYER_CACHE_MAX) {
     const now = Date.now()
     Array.from(playerCache.entries()).forEach(([key, val]) => {
       if (now - val.timestamp > PLAYER_CACHE_TTL) playerCache.delete(key)
     })
+    if (playerCache.size > PLAYER_CACHE_MAX) {
+      // Usuń najstarsze wpisy aż wrócimy do limitu
+      const sorted = Array.from(playerCache.entries()).sort((a, b) => a[1].timestamp - b[1].timestamp)
+      const toRemove = sorted.slice(0, playerCache.size - PLAYER_CACHE_MAX)
+      for (const [key] of toRemove) playerCache.delete(key)
+    }
   }
 
   return { player: entry.player, career: entry.career }
@@ -152,7 +173,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
     const knownClubSet = new Set(knownClubs.map(c => c.toLowerCase()))
     const knownLeagueSet = new Set(knownLeagues.map(l => l.toLowerCase()))
 
-    // Scoring – jedna iteracja
+    // Scoring – jedna iteracja z early termination
     let bestPlayerId: number | null = null
     let bestScore = -Infinity
 
@@ -164,6 +185,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
       const attrs = hint.matching_attributes
       const matchingClubs = hint.matching_clubs
       const matchingLeagues = hint.matching_leagues
+      const maxPossibleConfirmed = attrs.length - 1
 
       let newReveals = 0
       let confirmedKnown = 0
@@ -180,11 +202,15 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
         } else {
           newReveals++
         }
+        // Prune: jeśli już mamy >1 nowy atrybut i nie poprawi primary score — skip
+        if (newReveals > 1 && bestPlayerId !== null) break
       }
 
       if (newReveals === 1 && confirmedKnown > bestScore) {
         bestScore = confirmedKnown
         bestPlayerId = hint.player_id
+        // Early termination: idealny wynik (1 nowy + wszystkie inne potwierdzone)
+        if (confirmedKnown === maxPossibleConfirmed) break
       }
 
       if (newReveals > 0 && (newReveals < fallbackMinNew || (newReveals === fallbackMinNew && confirmedKnown > fallbackConfirmed))) {
@@ -196,25 +222,29 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
 
     const selectedPlayerId = bestPlayerId || fallbackPlayerId || available[0].player_id
 
-    // Pobierz dane wybranego gracza (z cache lub DB)
-    const guessedData = await getCachedPlayerData(selectedPlayerId)
-    if (!guessedData) {
-      return NextResponse.json({ success: false, error: 'Failed to fetch hint player' }, { status: 500 })
+    // Pobierz dane wybranego gracza — jeśli to answer player, użyj danych z cache (0 queries)
+    let guessedPlayer: Player
+    let guessedCareer: CareerEntry[]
+
+    if (selectedPlayerId === cache.answerPlayerId) {
+      guessedPlayer = cache.answerPlayer
+      guessedCareer = cache.answerCareer
+    } else {
+      const guessedData = await getCachedPlayerData(selectedPlayerId)
+      if (!guessedData) {
+        return NextResponse.json({ success: false, error: 'Failed to fetch hint player' }, { status: 500 })
+      }
+      guessedPlayer = withCurrentAge(guessedData.player)
+      guessedCareer = guessedData.career
     }
 
-    const guessedPlayer = withCurrentAge(guessedData.player)
-
     // Porównaj – answer player i kariera są już w cache
-    const result = compareGuess(guessedPlayer, cache.answerPlayer, guessedData.career, cache.answerCareer)
+    const result = compareGuess(guessedPlayer, cache.answerPlayer, guessedCareer, cache.answerCareer)
     result.isHint = true
 
     if (result.correct && result.answer) {
-      result.answer.career_clubs = Array.from(new Set(
-        cache.answerCareer.map(c => c.club_name).filter((n): n is string => Boolean(n))
-      ))
-      result.answer.career_leagues = Array.from(new Set(
-        cache.answerCareer.map(c => c.league).filter((l): l is string => Boolean(l))
-      ))
+      result.answer.career_clubs = cache.answerUniqueClubs
+      result.answer.career_leagues = cache.answerUniqueLeagues
     }
 
     return NextResponse.json({ success: true, result })

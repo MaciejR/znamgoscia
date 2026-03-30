@@ -140,37 +140,6 @@ function compareHistoryLeagues(guessCareer: CareerEntry[], answerCareer: CareerE
   }
 }
 
-// Oblicz wynik dopasowania zawodnika (do wyboru podpowiedzi)
-export function scorePlayerMatch(
-  candidate: Player,
-  answer: Player,
-  candidateCareer: CareerEntry[],
-  answerCareer: CareerEntry[]
-): number {
-  let score = 0
-  if (candidate.nationality === answer.nationality) score++
-  if (candidate.is_active === answer.is_active) score++
-  if (candidate.position === answer.position) score++
-  if (candidate.position_detailed && answer.position_detailed &&
-      candidate.position_detailed === answer.position_detailed) score++
-
-  const candidateClubs = new Set(candidateCareer.map(c => c.club_name ? normalizeClubName(c.club_name) : null).filter((c): c is string => Boolean(c)))
-  const answerClubs = new Set(answerCareer.map(c => c.club_name ? normalizeClubName(c.club_name) : null).filter((c): c is string => Boolean(c)))
-  if (candidateClubs.size > 0 && answerClubs.size > 0 && Array.from(candidateClubs).some(c => answerClubs.has(c))) score++
-
-  const candidateLeagues = new Set(
-    candidateCareer.map(c => c.league?.toLowerCase()).filter((l): l is string => Boolean(l))
-  )
-  const answerLeagues = new Set(
-    answerCareer.map(c => c.league?.toLowerCase()).filter((l): l is string => Boolean(l))
-  )
-  if (candidateLeagues.size > 0 && Array.from(candidateLeagues).some(l => answerLeagues.has(l))) score++
-
-  if (candidate.age != null && answer.age != null && Math.abs(candidate.age - answer.age) <= 3) score++
-
-  return score
-}
-
 // Generuj tekst do udostępnienia (wg spec)
 export function generateShareText(guesses: GuessResult[], date: string, won: boolean): string {
   // Numer zagadki (dni od 2025-01-01)
