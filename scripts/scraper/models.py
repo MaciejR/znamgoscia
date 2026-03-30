@@ -62,8 +62,8 @@ POSITION_DETAILED_MAP = {
     'Ofensywny pomocnik': 'Ofensywny pomocnik',
     'Lewy pomocnik': 'Lewy pomocnik',
     'Prawy pomocnik': 'Prawy pomocnik',
-    'Lewe skrzydło': 'Lewy pomocnik',
-    'Prawe skrzydło': 'Prawy pomocnik',
+    'Lewe skrzydło': 'Lewy napastnik',
+    'Prawe skrzydło': 'Prawy napastnik',
     'Cofnięty napastnik': 'Środkowy napastnik',
     'Środkowy napastnik': 'Środkowy napastnik',
 }
