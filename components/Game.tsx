@@ -191,11 +191,28 @@ export default function Game({ practiceDate }: GameProps = {}) {
       const alreadyGuessedIds = gameState.guesses.map(g => g.guessedPlayer.id)
 
       // Zbierz które atrybuty gracz już odkrył (trafił w jakiejkolwiek próbie)
+      // Dla klubów i lig śledzimy konkretne nazwy (granularnie)
       const knownAttributes: Record<string, boolean> = {}
+      const knownClubs = new Set<string>()
+      const knownLeagues = new Set<string>()
       for (const g of gameState.guesses) {
         for (const [key, hint] of Object.entries(g.hints)) {
           if (hint.status === 'correct' || hint.status === 'close') {
-            knownAttributes[key] = true
+            if (key === 'club_history') {
+              if (typeof hint.value === 'string' && hint.value !== 'Nie') {
+                for (const club of hint.value.split(', ')) {
+                  knownClubs.add(club.toLowerCase())
+                }
+              }
+            } else if (key === 'league_history') {
+              if (typeof hint.value === 'string' && hint.value !== 'Nie') {
+                for (const league of hint.value.split(', ')) {
+                  knownLeagues.add(league.toLowerCase())
+                }
+              }
+            } else {
+              knownAttributes[key] = true
+            }
           }
         }
       }
@@ -203,7 +220,13 @@ export default function Game({ practiceDate }: GameProps = {}) {
       const hintResponse = await fetch('/api/hint', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: gameState.date, alreadyGuessedIds, knownAttributes }),
+        body: JSON.stringify({
+          date: gameState.date,
+          alreadyGuessedIds,
+          knownAttributes,
+          knownClubs: Array.from(knownClubs),
+          knownLeagues: Array.from(knownLeagues),
+        }),
       })
 
       if (!hintResponse.ok) throw new Error('Failed to get hint')
