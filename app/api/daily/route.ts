@@ -70,6 +70,16 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    // Dla dzisiejszej daty bez reveal — cache 60s (dane nie zmieniają się w ciągu dnia)
+    if (!isPastDate && !reveal) {
+      const response = NextResponse.json({
+        date,
+        playerExists: true,
+      })
+      response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=3600')
+      return response
+    }
+
     // Dla dat przeszłych lub reveal=true zwróć pełne dane zawodnika
     if (isPastDate || reveal) {
       const player = dailyPlayer.players as unknown as Record<string, unknown>
@@ -112,7 +122,7 @@ export async function GET(request: NextRequest) {
         (careerData || []).map(c => c.league).filter((l): l is string => Boolean(l))
       ))
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         date,
         playerExists: true,
         player: {
@@ -134,13 +144,15 @@ export async function GET(request: NextRequest) {
           career_leagues: careerLeagues,
         }
       })
+      // Przeszłe daty — dane nigdy się nie zmienią, cache na 1 dzień
+      if (isPastDate) {
+        response.headers.set('Cache-Control', 'public, max-age=86400, stale-while-revalidate=86400')
+      }
+      return response
     }
 
-    // Dla dzisiejszej daty nie zwracaj danych zawodnika
-    return NextResponse.json({
-      date,
-      playerExists: true,
-    })
+    // Fallback (nie powinno wystąpić)
+    return NextResponse.json({ date, playerExists: true })
 
   } catch (error) {
     console.error('Error in daily API:', error)
