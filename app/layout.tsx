@@ -7,6 +7,7 @@ import { AuthProvider } from '@/lib/auth-context'
 import { StatsProvider } from '@/lib/stats-context'
 import HeaderNav from '@/components/HeaderNav'
 import GlobalStatsModal from '@/components/GlobalStatsModal'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 
 const inter = Inter({ subsets: ['latin', 'latin-ext'] })
 
@@ -86,6 +87,7 @@ export default function RootLayout({
           <GlobalStatsModal />
         </StatsProvider>
         </AuthProvider>
+        <SpeedInsights />
       </body>
     </html>
   )
