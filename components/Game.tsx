@@ -232,21 +232,9 @@ export default function Game({ practiceDate }: GameProps = {}) {
       if (!hintResponse.ok) throw new Error('Failed to get hint')
 
       const hintData = await hintResponse.json()
-      if (!hintData.hint?.player?.id) throw new Error('Invalid hint response')
+      if (!hintData.result?.guessedPlayer?.id) throw new Error('Invalid hint response')
 
-      const guessResponse = await fetch('/api/guess', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date: gameState.date,
-          guessedPlayerId: hintData.hint.player.id,
-        }),
-      })
-
-      if (!guessResponse.ok) throw new Error('Failed to check hint player')
-
-      const result: GuessResult = await guessResponse.json()
-      result.isHint = true
+      const result: GuessResult = hintData.result
 
       const newGuesses = [...gameState.guesses, result]
       const newState: GameState = { ...gameState, guesses: newGuesses }
