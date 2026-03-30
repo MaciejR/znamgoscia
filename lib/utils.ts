@@ -31,6 +31,42 @@ export function normalizeString(str: string): string {
   return normalizePolish(str).toLowerCase().trim()
 }
 
+// Mapowanie szczegółowych pozycji na ustandaryzowane polskie nazwy
+export const POSITION_DETAILED_MAP: Record<string, string> = {
+  'Goalkeeper': 'Bramkarz',
+  'Centre-Back': 'Środkowy obrońca',
+  'Left-Back': 'Lewy obrońca',
+  'Right-Back': 'Prawy obrońca',
+  'Defensive Midfield': 'Defensywny pomocnik',
+  'Central Midfield': 'Środkowy pomocnik',
+  'Attacking Midfield': 'Ofensywny pomocnik',
+  'Left Midfield': 'Lewy pomocnik',
+  'Right Midfield': 'Prawy pomocnik',
+  'Left Winger': 'Lewe skrzydło',
+  'Right Winger': 'Prawe skrzydło',
+  'Second Striker': 'Cofnięty napastnik',
+  'Centre-Forward': 'Środkowy napastnik',
+  'Bramkarz': 'Bramkarz',
+  'Środkowy obrońca': 'Środkowy obrońca',
+  'Lewy obrońca': 'Lewy obrońca',
+  'Prawy obrońca': 'Prawy obrońca',
+  'Defensywny pomocnik': 'Defensywny pomocnik',
+  'Środkowy pomocnik': 'Środkowy pomocnik',
+  'Ofensywny pomocnik': 'Ofensywny pomocnik',
+  'Lewy pomocnik': 'Lewy pomocnik',
+  'Prawy pomocnik': 'Prawy pomocnik',
+  'Lewe skrzydło': 'Lewe skrzydło',
+  'Prawe skrzydło': 'Prawe skrzydło',
+  'Cofnięty napastnik': 'Cofnięty napastnik',
+  'Środkowy napastnik': 'Środkowy napastnik',
+}
+
+export function normalizePositionDetailed(posText: string | null): string | null {
+  if (!posText) return null
+  const trimmed = posText.trim()
+  return POSITION_DETAILED_MAP[trimmed] ?? trimmed
+}
+
 // Mapowanie pozycji z angielskiego na polski
 export const POSITION_MAP: Record<string, Position> = {
   'Goalkeeper': 'Bramkarz',

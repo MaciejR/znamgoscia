@@ -51,6 +51,53 @@ class CareerEntry:
     goals: int = 0
 
 
+# Mapowanie szczegółowych pozycji na ustandaryzowane polskie nazwy
+POSITION_DETAILED_MAP = {
+    # Angielskie nazwy z Transfermarkt
+    'Goalkeeper': 'Bramkarz',
+    'Centre-Back': 'Środkowy obrońca',
+    'Left-Back': 'Lewy obrońca',
+    'Right-Back': 'Prawy obrońca',
+    'Defensive Midfield': 'Defensywny pomocnik',
+    'Central Midfield': 'Środkowy pomocnik',
+    'Attacking Midfield': 'Ofensywny pomocnik',
+    'Left Midfield': 'Lewy pomocnik',
+    'Right Midfield': 'Prawy pomocnik',
+    'Left Winger': 'Lewe skrzydło',
+    'Right Winger': 'Prawe skrzydło',
+    'Second Striker': 'Cofnięty napastnik',
+    'Centre-Forward': 'Środkowy napastnik',
+    # Polskie warianty (normalizacja do jednego formatu)
+    'Bramkarz': 'Bramkarz',
+    'Środkowy obrońca': 'Środkowy obrońca',
+    'Lewy obrońca': 'Lewy obrońca',
+    'Prawy obrońca': 'Prawy obrońca',
+    'Defensywny pomocnik': 'Defensywny pomocnik',
+    'Środkowy pomocnik': 'Środkowy pomocnik',
+    'Ofensywny pomocnik': 'Ofensywny pomocnik',
+    'Lewy pomocnik': 'Lewy pomocnik',
+    'Prawy pomocnik': 'Prawy pomocnik',
+    'Lewe skrzydło': 'Lewe skrzydło',
+    'Prawe skrzydło': 'Prawe skrzydło',
+    'Cofnięty napastnik': 'Cofnięty napastnik',
+    'Środkowy napastnik': 'Środkowy napastnik',
+}
+
+
+def normalize_position_detailed(pos_text: str) -> Optional[str]:
+    """
+    Standaryzuje szczegółową pozycję na polską nazwę.
+    Zwraca None jeśli nie udało się zmapować.
+    """
+    if not pos_text:
+        return None
+    pos_text = pos_text.strip()
+    if pos_text in POSITION_DETAILED_MAP:
+        return POSITION_DETAILED_MAP[pos_text]
+    # Fallback - zwróć oryginalny tekst
+    return pos_text
+
+
 # Mapowanie pozycji z angielskiego na polski
 POSITION_MAP = {
     'Goalkeeper': 'Bramkarz',

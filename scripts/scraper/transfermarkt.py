@@ -15,7 +15,7 @@ from bs4 import BeautifulSoup
 from .models import (
     Club, Player, CareerEntry,
     normalize_name, parse_position, parse_market_value,
-    get_nationality_code, calculate_age
+    get_nationality_code, calculate_age, normalize_position_detailed
 )
 
 
@@ -284,7 +284,7 @@ class TransfermarktScraper:
                 pos_text = position_td.get_text(strip=True)
             position = parse_position(pos_text)
             if pos_text:
-                position_detailed = pos_text
+                position_detailed = normalize_position_detailed(pos_text)
         else:
             # Alternatywnie szukamy w innych td
             for td in row.find_all('td'):
@@ -294,7 +294,7 @@ class TransfermarktScraper:
                            'Defensive Midfield', 'Central Midfield', 'Attacking Midfield',
                            'Left Winger', 'Right Winger', 'Centre-Forward', 'Second Striker']:
                     position = parse_position(text)
-                    position_detailed = text
+                    position_detailed = normalize_position_detailed(text)
                     break
 
         # Narodowość
