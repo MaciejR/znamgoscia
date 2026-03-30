@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import { GuessResult as GuessResultType } from '@/lib/types'
 import { getFlagEmoji } from '@/lib/utils'
 import { ChevronDown, ChevronUp, HelpCircle, Check, X, Info } from 'lucide-react'
@@ -49,7 +49,7 @@ const ATTRIBUTE_DEFS = [
   },
 ]
 
-export default function GuessResult({ result, isLast }: GuessResultProps) {
+function GuessResult({ result, isLast }: GuessResultProps) {
   const [expanded, setExpanded] = useState(isLast)
   const { guessedPlayer, hints, matchPercentage } = result
 
@@ -131,7 +131,9 @@ interface AttributeCellProps {
   hint: { status: string; value: string | number; direction?: 'higher' | 'lower' }
 }
 
-function AttributeCell({ label, tooltip, hint }: AttributeCellProps) {
+export default memo(GuessResult)
+
+const AttributeCell = memo(function AttributeCell({ label, tooltip, hint }: AttributeCellProps) {
   const [showTooltip, setShowTooltip] = useState(false)
   const isCorrect = hint.status === 'correct'
   const isClose = hint.status === 'close'
@@ -187,4 +189,4 @@ function AttributeCell({ label, tooltip, hint }: AttributeCellProps) {
       )}
     </div>
   )
-}
+})

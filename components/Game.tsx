@@ -55,6 +55,7 @@ export default function Game({ practiceDate }: GameProps = {}) {
 
     try {
       const date = practiceDate ?? getTodayDate()
+      let statsPromise: Promise<void> | null = null
 
       if (isPractice) {
         // Practice mode: load from separate key, don't load user stats
@@ -97,19 +98,20 @@ export default function Game({ practiceDate }: GameProps = {}) {
           saveGameState(newState)
         }
 
-        // Pobierz statystyki dzienne (średnia prób)
-        try {
-          const statsRes = await fetch(`/api/stats?date=${date}`)
-          if (statsRes.ok) {
-            const statsData = await statsRes.json()
-            if (statsData.avgGuesses > 0) setAvgGuesses(statsData.avgGuesses)
-          }
-        } catch { /* ignoruj */ }
+        // Pobierz statystyki dzienne równolegle z daily check (poniżej)
+        statsPromise = fetch(`/api/stats?date=${date}`)
+          .then(res => res.ok ? res.json() : null)
+          .then(data => { if (data?.avgGuesses > 0) setAvgGuesses(data.avgGuesses) })
+          .catch(() => {})
       }
 
-      // Sprawdź czy zawodnik jest dostępny
-      const response = await fetch(`/api/daily?date=${date}`)
-      const data = await response.json()
+      // Sprawdź daily + rozgrzej hint cache + opcjonalnie stats — równolegle
+      const [dailyResponse] = await Promise.all([
+        fetch(`/api/daily?date=${date}`),
+        fetch(`/api/hint?date=${date}`).catch(() => {}), // fire & forget warmup
+        statsPromise || Promise.resolve(),
+      ])
+      const data = await dailyResponse.json()
       if (!data.playerExists) {
         setError('Zawodnik dla tego dnia nie jest dostępny.')
       }
