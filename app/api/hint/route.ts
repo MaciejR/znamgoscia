@@ -161,7 +161,8 @@ async function fetchPlayerWithClub(playerId: number): Promise<{ player: Player |
     .from('players')
     .select(`
       id, name, name_normalized, birth_date, age, nationality, nationality_code,
-      position, position_detailed, is_active, photo_url, current_club_id,
+      position, position_detailed, jersey_number, market_value, photo_url,
+      transfermarkt_id, is_active, current_club_id,
       clubs (id, name, name_short, league, logo_url)
     `)
     .eq('id', playerId)
