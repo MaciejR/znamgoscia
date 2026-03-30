@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { Player, CareerEntry } from '@/lib/types'
-import { withCurrentAge } from '@/lib/utils'
+import { withCurrentAge, isLeagueIncluded } from '@/lib/utils'
 
 // ── Współdzielony cache odpowiedzi dnia ──
 // Używany przez /api/guess i /api/hint — answer player + kariera
@@ -49,7 +49,7 @@ export async function getAnswerCache(date: string): Promise<AnswerCache | null> 
     careerResult.map(c => c.club_name).filter((n): n is string => Boolean(n))
   ))
   const answerUniqueLeagues = Array.from(new Set(
-    careerResult.map(c => c.league).filter((l): l is string => Boolean(l))
+    careerResult.map(c => c.league).filter((l): l is string => Boolean(l)).filter(l => isLeagueIncluded(l))
   ))
 
   answerCache = {

@@ -1,7 +1,21 @@
-import { Player, Position } from './types'
+import { Player } from './types'
+
+// Standaryzacja position_detailed na odczycie
+const POSITION_DETAILED_NORMALIZE: Record<string, string> = {
+  'Cofnięty napastnik': 'Środkowy napastnik',
+  'Lewe skrzydło': 'Lewy pomocnik',
+  'Prawe skrzydło': 'Prawy pomocnik',
+}
+
+export function normalizePositionDetailed(pos: string | null): string | null {
+  if (!pos) return pos
+  return POSITION_DETAILED_NORMALIZE[pos] ?? pos
+}
 
 // Oblicz aktualny wiek z daty urodzenia (lub użyj statycznego age jako fallback)
+// + normalizacja position_detailed
 export function withCurrentAge<T extends Player>(player: T): T {
+  const position_detailed = normalizePositionDetailed(player.position_detailed)
   if (player.birth_date) {
     const today = new Date()
     const birth = new Date(player.birth_date)
@@ -10,9 +24,12 @@ export function withCurrentAge<T extends Player>(player: T): T {
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
       age--
     }
-    return { ...player, age }
+    return { ...player, age, position_detailed }
   }
-  return player // fallback: statyczny age z bazy
+  if (position_detailed !== player.position_detailed) {
+    return { ...player, position_detailed }
+  }
+  return player
 }
 
 // Normalizacja polskich znaków
@@ -31,26 +48,48 @@ export function normalizeString(str: string): string {
   return normalizePolish(str).toLowerCase().trim()
 }
 
-// Mapowanie pozycji z angielskiego na polski
-export const POSITION_MAP: Record<string, Position> = {
-  'Goalkeeper': 'Bramkarz',
-  'Centre-Back': 'Obronca',
-  'Left-Back': 'Obronca',
-  'Right-Back': 'Obronca',
-  'Defensive Midfield': 'Pomocnik',
-  'Central Midfield': 'Pomocnik',
-  'Attacking Midfield': 'Pomocnik',
-  'Left Midfield': 'Pomocnik',
-  'Right Midfield': 'Pomocnik',
-  'Left Winger': 'Pomocnik',
-  'Right Winger': 'Pomocnik',
-  'Centre-Forward': 'Napastnik',
-  'Second Striker': 'Napastnik',
-  // Polish variants
-  'Bramkarz': 'Bramkarz',
-  'Obrońca': 'Obronca',
-  'Pomocnik': 'Pomocnik',
-  'Napastnik': 'Napastnik',
+// Filtrowanie lig – pomijamy puchary krajowe i rozgrywki młodzieżowe poniżej U-19
+const DOMESTIC_CUP_PATTERNS = [
+  /puchar/i,
+  /cup/i,
+  /pokal/i,
+  /copa/i,
+  /coppa/i,
+  /coupe/i,
+  /taca/i,
+  /taça/i,
+]
+
+const INTERNATIONAL_PATTERNS = [
+  /liga mistrz/i,
+  /liga europ/i,
+  /liga konferencji/i,
+  /champions league/i,
+  /europa league/i,
+  /conference league/i,
+  /uefa/i,
+  /puchar zdobywc/i,
+  /superpuchar europ/i,
+  /intercontinental/i,
+  /puchar intertoto/i,
+]
+
+const YOUTH_BELOW_U19 = /\bu[- ]?(1[0-8]|[1-9])\b/i
+
+export function isLeagueIncluded(league: string): boolean {
+  if (!league) return false
+
+  // Rozgrywki młodzieżowe poniżej U-19 – wyklucz
+  if (YOUTH_BELOW_U19.test(league)) return false
+
+  // Puchary – sprawdź czy krajowy
+  const isCup = DOMESTIC_CUP_PATTERNS.some(p => p.test(league))
+  if (isCup) {
+    // Zachowaj jeśli międzynarodowy
+    return INTERNATIONAL_PATTERNS.some(p => p.test(league))
+  }
+
+  return true
 }
 
 // Mapowanie kodów narodowości na flagi emoji (z cache)

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { normalizeString } from '@/lib/utils'
+import { normalizeString, normalizePositionDetailed } from '@/lib/utils'
 import { SearchResult } from '@/lib/types'
 
 // Cache dla wyników wyszukiwania (5 minut)
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     const players: SearchResult[] = merged.map(player => ({
       id: player.id,
       name: player.name,
-      position_detailed: player.position_detailed,
+      position_detailed: normalizePositionDetailed(player.position_detailed),
       nationality_code: player.nationality_code,
     }))
 
