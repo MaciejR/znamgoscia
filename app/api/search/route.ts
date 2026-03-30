@@ -28,39 +28,38 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ players: cached.data })
     }
 
-    // Wyszukaj zawodników (pobierz więcej, posortuj po relevance, obetnij)
-    const { data, error } = await supabase
-      .from('players')
-      .select(`
-        id,
-        name,
-        position_detailed,
-        nationality_code,
-        market_value
-      `)
-      .ilike('name_normalized', `%${normalizedQuery}%`)
-      .order('market_value', { ascending: false, nullsFirst: false })
-      .limit(limit * 5)
+    // Dwa równoległe zapytania: prefix (trafniejszy) + contains (reszta)
+    const selectFields = 'id, name, position_detailed, nationality_code'
+    const [prefixResult, containsResult] = await Promise.all([
+      supabase
+        .from('players')
+        .select(selectFields)
+        .ilike('name_normalized', `${normalizedQuery}%`)
+        .order('market_value', { ascending: false, nullsFirst: false })
+        .limit(limit),
+      supabase
+        .from('players')
+        .select(selectFields)
+        .ilike('name_normalized', `%${normalizedQuery}%`)
+        .not('name_normalized', 'ilike', `${normalizedQuery}%`)
+        .order('market_value', { ascending: false, nullsFirst: false })
+        .limit(limit),
+    ])
 
-    if (error) {
-      console.error('Search error:', error)
+    if (prefixResult.error && containsResult.error) {
+      console.error('Search error:', prefixResult.error)
       return NextResponse.json(
         { error: 'Search failed' },
         { status: 500 }
       )
     }
 
-    // Sortuj: exact match na początku, potem po market_value (znani wyżej)
-    const sorted = (data || []).sort((a, b) => {
-      const aExact = normalizeString(a.name).startsWith(normalizedQuery)
-      const bExact = normalizeString(b.name).startsWith(normalizedQuery)
-      if (aExact && !bExact) return -1
-      if (!aExact && bExact) return 1
-      return (b.market_value || 0) - (a.market_value || 0)
-    })
+    // Merge: prefix matches first, then contains, up to limit
+    const prefixData = prefixResult.data || []
+    const containsData = containsResult.data || []
+    const merged = [...prefixData, ...containsData].slice(0, limit)
 
-    // Formatuj i obetnij
-    const players: SearchResult[] = sorted.slice(0, limit).map(player => ({
+    const players: SearchResult[] = merged.map(player => ({
       id: player.id,
       name: player.name,
       position_detailed: player.position_detailed,

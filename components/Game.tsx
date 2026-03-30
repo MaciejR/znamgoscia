@@ -107,11 +107,14 @@ export default function Game({ practiceDate }: GameProps = {}) {
         } catch { /* ignoruj */ }
       }
 
-      // Sprawdź czy zawodnik jest dostępny
+      // Sprawdź czy zawodnik jest dostępny + rozgrzej cache hintów w tle
       const response = await fetch(`/api/daily?date=${date}`)
       const data = await response.json()
       if (!data.playerExists) {
         setError('Zawodnik dla tego dnia nie jest dostępny.')
+      } else {
+        // Fire & forget: rozgrzej cache hintów na serwerze
+        fetch(`/api/hint?date=${date}`).catch(() => {})
       }
     } catch (err) {
       console.error('Error initializing game:', err)
