@@ -18,7 +18,102 @@ interface HintResponse {
   error?: string
 }
 
-// POST /api/hint – wybierz podpowiedź i od razu zwróć GuessResult (hint + guess w jednym)
+// ── Cache dzienny (te same dane dla wszystkich graczy przez cały dzień) ──
+
+interface DailyHint {
+  player_id: number
+  matching_attributes: string[]
+  matching_clubs: string[]
+  matching_leagues: string[]
+}
+
+interface DailyCache {
+  date: string
+  hints: DailyHint[]
+  answerPlayerId: number
+  answerPlayer: Player
+  answerCareer: CareerEntry[]
+}
+
+let dailyCache: DailyCache | null = null
+
+async function getDailyCache(date: string): Promise<DailyCache | null> {
+  if (dailyCache && dailyCache.date === date) {
+    return dailyCache
+  }
+
+  // Pobierz hinty i answer player_id równolegle
+  const [hintsResult, dailyResult] = await Promise.all([
+    supabase
+      .from('daily_hints')
+      .select('player_id, matching_attributes, matching_clubs, matching_leagues')
+      .eq('date', date),
+    supabase
+      .from('daily_players')
+      .select('player_id')
+      .eq('date', date)
+      .single(),
+  ])
+
+  if (hintsResult.error || !hintsResult.data?.length || dailyResult.error || !dailyResult.data) {
+    return null
+  }
+
+  const answerPlayerId = dailyResult.data.player_id
+
+  // Pobierz dane answer playera i jego karierę równolegle
+  const [answerResult, answerCareer] = await Promise.all([
+    fetchPlayerWithClub(answerPlayerId),
+    fetchCareerHistory(answerPlayerId),
+  ])
+
+  if (!answerResult.player) return null
+
+  dailyCache = {
+    date,
+    hints: hintsResult.data as DailyHint[],
+    answerPlayerId,
+    answerPlayer: withCurrentAge(answerResult.player),
+    answerCareer,
+  }
+
+  return dailyCache
+}
+
+// ── Cache graczy (hint candidates) ──
+
+const playerCache = new Map<number, { player: Player; career: CareerEntry[]; timestamp: number }>()
+const PLAYER_CACHE_TTL = 60 * 60 * 1000 // 1 godzina
+
+async function getCachedPlayerData(playerId: number): Promise<{ player: Player; career: CareerEntry[] } | null> {
+  const cached = playerCache.get(playerId)
+  if (cached && Date.now() - cached.timestamp < PLAYER_CACHE_TTL) {
+    return { player: cached.player, career: cached.career }
+  }
+
+  const [result, career] = await Promise.all([
+    fetchPlayerWithClub(playerId),
+    fetchCareerHistory(playerId),
+  ])
+
+  if (!result.player) return null
+
+  const entry = { player: result.player, career, timestamp: Date.now() }
+  playerCache.set(playerId, entry)
+
+  // Czyszczenie starych wpisów
+  if (playerCache.size > 200) {
+    const now = Date.now()
+    Array.from(playerCache.entries()).forEach(([key, val]) => {
+      if (now - val.timestamp > PLAYER_CACHE_TTL) playerCache.delete(key)
+    })
+  }
+
+  return { player: entry.player, career: entry.career }
+}
+
+// ── POST /api/hint ──
+
 export async function POST(request: NextRequest): Promise<NextResponse<HintResponse>> {
   try {
     const body: HintRequestBody = await request.json()
@@ -34,30 +129,30 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
       return NextResponse.json({ success: false, error: 'Missing required field: date' }, { status: 400 })
     }
 
-    // Pobierz precomputowane podpowiedzi dla dnia – filtruj already guessed w SQL
-    let query = supabase
-      .from('daily_hints')
-      .select('player_id, matching_attributes, matching_clubs, matching_leagues')
-      .eq('date', date)
-
-    if (alreadyGuessedIds.length > 0) {
-      query = query.not('player_id', 'in', `(${alreadyGuessedIds.join(',')})`)
-    }
-
-    const { data: hints, error: hintsError } = await query
-
-    if (hintsError || !hints || hints.length === 0) {
+    // Pobierz dane dnia z cache (hinty + answer player)
+    const cache = await getDailyCache(date)
+    if (!cache) {
       return NextResponse.json({ success: false, error: 'No hints available for this date' }, { status: 404 })
     }
 
-    // Zbiory znanych atrybutów (5 skalarnych) + granularne kluby/ligi
+    // Filtruj already guessed w pamięci (hinty już są w cache)
+    const excludeSet = new Set(alreadyGuessedIds)
+    const available = excludeSet.size > 0
+      ? cache.hints.filter(h => !excludeSet.has(h.player_id))
+      : cache.hints
+
+    if (available.length === 0) {
+      return NextResponse.json({ success: false, error: 'No more hints available' }, { status: 404 })
+    }
+
+    // Zbiory znanych atrybutów
     const knownKeys = new Set(
       Object.entries(knownAttributes).filter(([, v]) => v).map(([k]) => k)
     )
     const knownClubSet = new Set(knownClubs.map(c => c.toLowerCase()))
     const knownLeagueSet = new Set(knownLeagues.map(l => l.toLowerCase()))
 
-    // Scoring – jedna iteracja, zbieramy najlepszego z newReveals===1 i fallback jednocześnie
+    // Scoring – jedna iteracja
     let bestPlayerId: number | null = null
     let bestScore = -Infinity
 
@@ -65,22 +160,20 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
     let fallbackMinNew = Infinity
     let fallbackConfirmed = -1
 
-    for (const hint of hints) {
-      const attrs: string[] = hint.matching_attributes || []
-      const matchingClubs: string[] = hint.matching_clubs || []
-      const matchingLeagues: string[] = hint.matching_leagues || []
+    for (const hint of available) {
+      const attrs = hint.matching_attributes
+      const matchingClubs = hint.matching_clubs
+      const matchingLeagues = hint.matching_leagues
 
       let newReveals = 0
       let confirmedKnown = 0
 
       for (const a of attrs) {
         if (a === 'club_history') {
-          const hasNew = matchingClubs.some(c => !knownClubSet.has(c))
-          if (hasNew) newReveals++
+          if (matchingClubs.some(c => !knownClubSet.has(c))) newReveals++
           else confirmedKnown++
         } else if (a === 'league_history') {
-          const hasNew = matchingLeagues.some(l => !knownLeagueSet.has(l))
-          if (hasNew) newReveals++
+          if (matchingLeagues.some(l => !knownLeagueSet.has(l))) newReveals++
           else confirmedKnown++
         } else if (knownKeys.has(a)) {
           confirmedKnown++
@@ -89,13 +182,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
         }
       }
 
-      // Priorytet: dokładnie 1 nowy atrybut
       if (newReveals === 1 && confirmedKnown > bestScore) {
         bestScore = confirmedKnown
         bestPlayerId = hint.player_id
       }
 
-      // Fallback: minimum nowych > 0
       if (newReveals > 0 && (newReveals < fallbackMinNew || (newReveals === fallbackMinNew && confirmedKnown > fallbackConfirmed))) {
         fallbackMinNew = newReveals
         fallbackConfirmed = confirmedKnown
@@ -103,47 +194,26 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
       }
     }
 
-    const selectedPlayerId = bestPlayerId || fallbackPlayerId || hints[0].player_id
+    const selectedPlayerId = bestPlayerId || fallbackPlayerId || available[0].player_id
 
-    // Pobierz daily player_id + dane obu graczy + kariery równolegle
-    const { data: dailyPlayer, error: dailyError } = await supabase
-      .from('daily_players')
-      .select('player_id')
-      .eq('date', date)
-      .single()
-
-    if (dailyError || !dailyPlayer) {
-      return NextResponse.json({ success: false, error: 'No player set for this date' }, { status: 404 })
+    // Pobierz dane wybranego gracza (z cache lub DB)
+    const guessedData = await getCachedPlayerData(selectedPlayerId)
+    if (!guessedData) {
+      return NextResponse.json({ success: false, error: 'Failed to fetch hint player' }, { status: 500 })
     }
 
-    const answerPlayerId = dailyPlayer.player_id
+    const guessedPlayer = withCurrentAge(guessedData.player)
 
-    // Pobierz dane obu graczy i kariery równolegle (4 zapytania → Promise.all)
-    const [guessedResult, answerResult, guessCareer, answerCareer] = await Promise.all([
-      fetchPlayerWithClub(selectedPlayerId),
-      fetchPlayerWithClub(answerPlayerId),
-      fetchCareerHistory(selectedPlayerId),
-      fetchCareerHistory(answerPlayerId),
-    ])
-
-    if (!guessedResult.player || !answerResult.player) {
-      return NextResponse.json({ success: false, error: 'Failed to fetch player data' }, { status: 500 })
-    }
-
-    const guessedPlayer = withCurrentAge(guessedResult.player)
-    const answerPlayer = withCurrentAge(answerResult.player)
-
-    // Porównaj – zwróć pełny GuessResult
-    const result = compareGuess(guessedPlayer, answerPlayer, guessCareer, answerCareer)
+    // Porównaj – answer player i kariera są już w cache
+    const result = compareGuess(guessedPlayer, cache.answerPlayer, guessedData.career, cache.answerCareer)
     result.isHint = true
 
-    // Przy poprawnej odpowiedzi dodaj kariery do answer
     if (result.correct && result.answer) {
       result.answer.career_clubs = Array.from(new Set(
-        answerCareer.map(c => c.club_name).filter((n): n is string => Boolean(n))
+        cache.answerCareer.map(c => c.club_name).filter((n): n is string => Boolean(n))
       ))
       result.answer.career_leagues = Array.from(new Set(
-        answerCareer.map(c => c.league).filter((l): l is string => Boolean(l))
+        cache.answerCareer.map(c => c.league).filter((l): l is string => Boolean(l))
       ))
     }
 
@@ -155,7 +225,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
   }
 }
 
-// Pomocnicza funkcja do pobierania zawodnika z klubem
+// ── Helpery DB ──
+
 async function fetchPlayerWithClub(playerId: number): Promise<{ player: Player | null }> {
   const { data, error } = await supabase
     .from('players')
@@ -186,7 +257,6 @@ async function fetchPlayerWithClub(playerId: number): Promise<{ player: Player |
   }
 }
 
-// Pomocnicza funkcja do pobierania historii kariery
 async function fetchCareerHistory(playerId: number): Promise<CareerEntry[]> {
   const { data, error } = await supabase
     .from('career_history')
