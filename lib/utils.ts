@@ -1,7 +1,21 @@
 import { Player } from './types'
 
+// Standaryzacja position_detailed na odczycie
+const POSITION_DETAILED_NORMALIZE: Record<string, string> = {
+  'Cofnięty napastnik': 'Środkowy napastnik',
+  'Lewe skrzydło': 'Lewy pomocnik',
+  'Prawe skrzydło': 'Prawy pomocnik',
+}
+
+function normalizePositionDetailed(pos: string | null): string | null {
+  if (!pos) return pos
+  return POSITION_DETAILED_NORMALIZE[pos] ?? pos
+}
+
 // Oblicz aktualny wiek z daty urodzenia (lub użyj statycznego age jako fallback)
+// + normalizacja position_detailed
 export function withCurrentAge<T extends Player>(player: T): T {
+  const position_detailed = normalizePositionDetailed(player.position_detailed)
   if (player.birth_date) {
     const today = new Date()
     const birth = new Date(player.birth_date)
@@ -10,9 +24,12 @@ export function withCurrentAge<T extends Player>(player: T): T {
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
       age--
     }
-    return { ...player, age }
+    return { ...player, age, position_detailed }
   }
-  return player // fallback: statyczny age z bazy
+  if (position_detailed !== player.position_detailed) {
+    return { ...player, position_detailed }
+  }
+  return player
 }
 
 // Normalizacja polskich znaków
