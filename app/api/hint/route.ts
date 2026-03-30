@@ -52,15 +52,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
       return NextResponse.json({ success: false, error: 'No more hints available' }, { status: 404 })
     }
 
-    // Ile nowych atrybutów chcemy ujawnić?
+    // Wybierz kandydata ujawniającego dokładnie 1 nieznany atrybut
     const known = knownAttributes
     const knownKeys = new Set(
       Object.entries(known).filter(([, v]) => v).map(([k]) => k)
     )
-    const knownCount = knownKeys.size
-    const targetNewReveals = knownCount <= 2 ? 1 : knownCount <= 4 ? 2 : 3
 
-    // Scoring: wybierz kandydata najbliższego targetNewReveals nowych atrybutów
     let bestScore = -Infinity
     let bestPlayerId: number | null = null
 
@@ -69,11 +66,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
       const newReveals = attrs.filter(a => !knownKeys.has(a)).length
       const confirmedKnown = attrs.filter(a => knownKeys.has(a)).length
 
-      if (newReveals === 0) continue
+      if (newReveals !== 1) continue
 
-      const revealScore = 10 - Math.abs(newReveals - targetNewReveals) * 3
-      const confirmScore = confirmedKnown * 0.5
-      const score = revealScore + confirmScore
+      const score = confirmedKnown
 
       if (score > bestScore) {
         bestScore = score
@@ -82,13 +77,17 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
     }
 
     if (!bestPlayerId) {
-      // Fallback: weź dowolnego z nowymi atrybutami
-      const withNew = available.filter(h =>
-        (h.matching_attributes as string[]).some(a => !knownKeys.has(a))
-      )
-      if (withNew.length > 0) {
-        bestPlayerId = withNew[0].player_id
-      } else {
+      // Fallback: weź kandydata z najmniejszą liczbą nowych (>0)
+      let minNew = Infinity
+      for (const hint of available) {
+        const attrs: string[] = hint.matching_attributes
+        const newReveals = attrs.filter(a => !knownKeys.has(a)).length
+        if (newReveals > 0 && newReveals < minNew) {
+          minNew = newReveals
+          bestPlayerId = hint.player_id
+        }
+      }
+      if (!bestPlayerId) {
         bestPlayerId = available[0].player_id
       }
     }

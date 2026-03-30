@@ -28,9 +28,8 @@ Codzienny quiz piłkarski dla fanów polskiej ligi. Każdego dnia jeden zagadkow
 5. **Stały pasek dolny** z polem tekstowym + „Podpowiedź" (szary) + „Poddaj się" (czerwony).
 6. **Podpowiedź** – inteligentny system celowanych podpowiedzi:
    - Analizuje które atrybuty gracz już zna (z poprzednich prób)
-   - Gracz wie mało (0–2) → ujawnia **1 nowy** atrybut
-   - Gracz wie średnio (3–4) → ujawnia **2 nowe** atrybuty
-   - Gracz wie dużo (5+) → ujawnia **3 nowe** atrybuty
+   - Zawsze ujawnia dokładnie **1 nowy** nieznany atrybut
+   - Spośród kandydatów z 1 nowym atrybutem preferuje tego, który potwierdza najwięcej już znanych
    - Kosztuje +1 próbę, oznaczana etykietą „Podpowiedź"
 7. **Poddaj się** – ujawnia odpowiedź z komunikatem „Jutro dasz radę!". Stan `gave_up` nie jest liczony jako wygrana.
 8. **Wiek obliczany dynamicznie** z `birth_date` (nie statyczny) – `withCurrentAge()` w `lib/utils.ts`.
@@ -149,7 +148,7 @@ Skrypty w `scripts/`:
 - **Brak auth w logice gry** – `Game.tsx` nie używa `useAuth`. Auth komponenty istnieją ale nie blokują rozgrywki.
 - **CareerEntry.league** – kolumna bezpośrednio w tabeli `career_history` (migracja 003).
 - **Wiek** – obliczany dynamicznie z `birth_date` przez `withCurrentAge()`, fallback na statyczny `age`.
-- **Podpowiedź** – celowana, ujawnia 1–3 nowe atrybuty w zależności od postępu gracza.
+- **Podpowiedź** – celowana, zawsze ujawnia dokładnie 1 nowy nieznany atrybut.
 - **Archiwum** – nie spoileruje odpowiedzi; pokazuje zawodnika tylko gdy gracz wygrał daną datę.
 - **Stats icon** – działa globalnie przez `StatsContext` + `GlobalStatsModal`, nie przez `getElementById`.
 - **localStorage keys** zachowane jako `ekstra-typ-*` (kompatybilność wsteczna po rebrandingu).
