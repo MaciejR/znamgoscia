@@ -79,7 +79,10 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({ players })
+    const response = NextResponse.json({ players })
+    // Wyniki wyszukiwania stabilne — cache 5 min na CDN
+    response.headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=60')
+    return response
 
   } catch (error) {
     console.error('Error in search API:', error)
