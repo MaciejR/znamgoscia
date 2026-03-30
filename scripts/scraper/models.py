@@ -53,21 +53,6 @@ class CareerEntry:
 
 # Mapowanie szczegółowych pozycji na ustandaryzowane polskie nazwy
 POSITION_DETAILED_MAP = {
-    # Angielskie nazwy z Transfermarkt
-    'Goalkeeper': 'Bramkarz',
-    'Centre-Back': 'Środkowy obrońca',
-    'Left-Back': 'Lewy obrońca',
-    'Right-Back': 'Prawy obrońca',
-    'Defensive Midfield': 'Defensywny pomocnik',
-    'Central Midfield': 'Środkowy pomocnik',
-    'Attacking Midfield': 'Ofensywny pomocnik',
-    'Left Midfield': 'Lewy pomocnik',
-    'Right Midfield': 'Prawy pomocnik',
-    'Left Winger': 'Lewe skrzydło',
-    'Right Winger': 'Prawe skrzydło',
-    'Second Striker': 'Środkowy napastnik',
-    'Centre-Forward': 'Środkowy napastnik',
-    # Polskie warianty (normalizacja do jednego formatu)
     'Bramkarz': 'Bramkarz',
     'Środkowy obrońca': 'Środkowy obrońca',
     'Lewy obrońca': 'Lewy obrońca',
