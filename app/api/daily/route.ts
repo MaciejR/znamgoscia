@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { withCurrentAge } from '@/lib/utils'
+import { withCurrentAge, normalizePositionDetailed } from '@/lib/utils'
 import { Player } from '@/lib/types'
 
 // GET /api/daily - pobierz dzisiejszego zawodnika
@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
           nationality: player?.nationality,
           nationality_code: player?.nationality_code,
           position: player?.position,
-          position_detailed: player?.position_detailed,
+          position_detailed: normalizePositionDetailed(player?.position_detailed as string | null),
           jersey_number: player?.jersey_number,
           market_value: player?.market_value,
           photo_url: player?.photo_url,

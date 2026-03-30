@@ -3,8 +3,8 @@ import { Player } from './types'
 // Standaryzacja position_detailed na odczycie
 const POSITION_DETAILED_NORMALIZE: Record<string, string> = {
   'Cofnięty napastnik': 'Środkowy napastnik',
-  'Lewe skrzydło': 'Lewy pomocnik',
-  'Prawe skrzydło': 'Prawy pomocnik',
+  'Lewe skrzydło': 'Lewy napastnik',
+  'Prawe skrzydło': 'Prawy napastnik',
 }
 
 export function normalizePositionDetailed(pos: string | null): string | null {
