@@ -2,20 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { Player } from '@/lib/types'
 
-interface GuessedHints {
-  nationality?: boolean
-  career_status?: boolean
-  position?: boolean
-  position_detailed?: boolean
-  club_history?: boolean
-  league_history?: boolean
-  age?: boolean
-}
-
 interface HintRequestBody {
   date: string
   alreadyGuessedIds?: number[]
-  knownAttributes?: GuessedHints
+  knownAttributes?: Record<string, boolean>
+  knownClubs?: string[]
+  knownLeagues?: string[]
 }
 
 interface HintResponse {
@@ -28,7 +20,13 @@ interface HintResponse {
 export async function POST(request: NextRequest): Promise<NextResponse<HintResponse>> {
   try {
     const body: HintRequestBody = await request.json()
-    const { date, alreadyGuessedIds = [], knownAttributes = {} } = body
+    const {
+      date,
+      alreadyGuessedIds = [],
+      knownAttributes = {},
+      knownClubs = [],
+      knownLeagues = [],
+    } = body
 
     if (!date) {
       return NextResponse.json({ success: false, error: 'Missing required field: date' }, { status: 400 })
@@ -37,7 +35,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
     // Pobierz precomputowane podpowiedzi dla dnia
     const { data: hints, error: hintsError } = await supabase
       .from('daily_hints')
-      .select('player_id, matching_attributes')
+      .select('player_id, matching_attributes, matching_clubs, matching_leagues')
       .eq('date', date)
 
     if (hintsError || !hints || hints.length === 0) {
@@ -52,26 +50,58 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
       return NextResponse.json({ success: false, error: 'No more hints available' }, { status: 404 })
     }
 
-    // Wybierz kandydata ujawniającego dokładnie 1 nieznany atrybut
-    const known = knownAttributes
+    // Zbiory znanych atrybutów (5 skalarnych) + granularne kluby/ligi
     const knownKeys = new Set(
-      Object.entries(known).filter(([, v]) => v).map(([k]) => k)
+      Object.entries(knownAttributes).filter(([, v]) => v).map(([k]) => k)
     )
+    const knownClubSet = new Set(knownClubs.map(c => c.toLowerCase()))
+    const knownLeagueSet = new Set(knownLeagues.map(l => l.toLowerCase()))
 
+    // Oblicz newReveals i confirmedKnown dla kandydata
+    function scoreCandidate(hint: typeof available[0]) {
+      const attrs: string[] = hint.matching_attributes || []
+      const matchingClubs: string[] = hint.matching_clubs || []
+      const matchingLeagues: string[] = hint.matching_leagues || []
+
+      let newReveals = 0
+      let confirmedKnown = 0
+
+      for (const a of attrs) {
+        if (a === 'club_history') {
+          const newClubs = matchingClubs.filter(c => !knownClubSet.has(c))
+          if (newClubs.length > 0) {
+            newReveals++
+          } else {
+            confirmedKnown++
+          }
+        } else if (a === 'league_history') {
+          const newLeagues = matchingLeagues.filter(l => !knownLeagueSet.has(l))
+          if (newLeagues.length > 0) {
+            newReveals++
+          } else {
+            confirmedKnown++
+          }
+        } else if (knownKeys.has(a)) {
+          confirmedKnown++
+        } else {
+          newReveals++
+        }
+      }
+
+      return { newReveals, confirmedKnown }
+    }
+
+    // Wybierz kandydata ujawniającego dokładnie 1 nowy atrybut
     let bestScore = -Infinity
     let bestPlayerId: number | null = null
 
     for (const hint of available) {
-      const attrs: string[] = hint.matching_attributes
-      const newReveals = attrs.filter(a => !knownKeys.has(a)).length
-      const confirmedKnown = attrs.filter(a => knownKeys.has(a)).length
+      const { newReveals, confirmedKnown } = scoreCandidate(hint)
 
       if (newReveals !== 1) continue
 
-      const score = confirmedKnown
-
-      if (score > bestScore) {
-        bestScore = score
+      if (confirmedKnown > bestScore) {
+        bestScore = confirmedKnown
         bestPlayerId = hint.player_id
       }
     }
@@ -79,11 +109,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<HintRespo
     if (!bestPlayerId) {
       // Fallback: weź kandydata z najmniejszą liczbą nowych (>0)
       let minNew = Infinity
+      let fallbackConfirmed = -1
       for (const hint of available) {
-        const attrs: string[] = hint.matching_attributes
-        const newReveals = attrs.filter(a => !knownKeys.has(a)).length
-        if (newReveals > 0 && newReveals < minNew) {
+        const { newReveals, confirmedKnown } = scoreCandidate(hint)
+        if (newReveals > 0 && (newReveals < minNew || (newReveals === minNew && confirmedKnown > fallbackConfirmed))) {
           minNew = newReveals
+          fallbackConfirmed = confirmedKnown
           bestPlayerId = hint.player_id
         }
       }

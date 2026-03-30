@@ -81,7 +81,7 @@ function compareAge(guessAge: number | null, answerAge: number | null): Hint {
 }
 
 // Normalizuj nazwę klubu: usuń prefiksy (FC, AC, ACF, etc.), lowercase
-function normalizeClubName(name: string): string {
+export function normalizeClubName(name: string): string {
   return name.toLowerCase()
     .replace(/^(fc |ac |acf |afc |sc |fk |sk |rks |mks |ks |gks |ts |wks |bks |oks |lks |zks |nk )/i, '')
     .replace(/ (fc|sc|fk|sk)$/i, '')
