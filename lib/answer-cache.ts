@@ -49,7 +49,7 @@ export async function getAnswerCache(date: string): Promise<AnswerCache | null> 
     careerResult.map(c => c.club_name).filter((n): n is string => Boolean(n))
   ))
   const answerUniqueLeagues = Array.from(new Set(
-    careerResult.map(c => c.league).filter((l): l is string => Boolean(l) && isLeagueIncluded(l))
+    careerResult.map(c => c.league).filter((l): l is string => Boolean(l)).filter(l => isLeagueIncluded(l))
   ))
 
   answerCache = {
