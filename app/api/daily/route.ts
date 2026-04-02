@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
           jersey_number,
           market_value,
           photo_url,
+          is_active,
           current_club_id,
           clubs (
             id,
@@ -140,6 +141,7 @@ export async function GET(request: NextRequest) {
           club_short: clubShort,
           club_league: clubLeague,
           club_logo: clubLogo,
+          is_active: player?.is_active,
           career_clubs: careerClubs,
           career_leagues: careerLeagues,
         }
