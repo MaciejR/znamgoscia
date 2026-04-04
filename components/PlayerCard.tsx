@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Player } from '@/lib/types'
 import { getFlagEmoji, formatMarketValue } from '@/lib/utils'
-import { Trophy, User, MapPin, Calendar, DollarSign, Briefcase, Globe } from 'lucide-react'
-import Image from 'next/image'
+import { Trophy, MapPin, Calendar, DollarSign, Briefcase, Globe } from 'lucide-react'
 
 interface PlayerCardProps {
   player: Player
@@ -83,22 +82,9 @@ export default function PlayerCard({ player, won, guessCount }: PlayerCardProps)
                 </span>
               </div>
 
-              {/* Klub z herbem */}
+              {/* Klub */}
               {player.club_name && (
                 <div className="flex items-center justify-center gap-3 mb-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
-                  {player.club_logo ? (
-                    <Image
-                      src={player.club_logo}
-                      alt={player.club_name}
-                      width={40}
-                      height={40}
-                      className="w-10 h-10 object-contain"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 bg-slate-200 dark:bg-slate-600 rounded-lg flex items-center justify-center text-slate-400">
-                      <MapPin className="w-5 h-5" />
-                    </div>
-                  )}
                   <div>
                     <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">{player.club_name}</div>
                     {player.club_league && (
