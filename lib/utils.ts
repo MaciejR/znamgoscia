@@ -5,6 +5,8 @@ const POSITION_DETAILED_NORMALIZE: Record<string, string> = {
   'Cofnięty napastnik': 'Środkowy napastnik',
   'Lewe skrzydło': 'Lewy napastnik',
   'Prawe skrzydło': 'Prawy napastnik',
+  'Lewy pomocnik': 'Lewy napastnik',
+  'Prawy pomocnik': 'Prawy napastnik',
 }
 
 export function normalizePositionDetailed(pos: string | null): string | null {
