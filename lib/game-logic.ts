@@ -1,5 +1,5 @@
 import { Player, CareerEntry, GuessResult, HintStatus, Hint, GameState, UserStats } from './types'
-import { getTodayDate } from './utils'
+import { getTodayDate, isLeagueIncluded } from './utils'
 
 // Porównaj strzał z odpowiedzią – 7 atrybutów
 export function compareGuess(
@@ -115,14 +115,24 @@ function compareHistoryClubs(guessCareer: CareerEntry[], answerCareer: CareerEnt
   }
 }
 
+// Normalizuj nazwę ligi: usuń prefiks sponsora, sprowadź do kanonicznej nazwy
+function normalizeLeagueName(league: string): string {
+  const l = league.toLowerCase().trim()
+  // Polska ekstraklasa – różne nazwy sponsorów na przestrzeni lat
+  if (l.includes('ekstraklasa') && !l.includes('1 liga') && !l.includes('2 liga') && !l.includes('3 liga')) return 'ekstraklasa'
+  // Polska 1 liga
+  if ((l.includes('1 liga') || l.includes('pierwsza liga')) && (l.includes('pol') || l.includes('betclic') || l.includes('fortuna') || l.includes('etrago') || l.includes('fk') || l === '1 liga' || l.startsWith('1 liga '))) return 'polska 1 liga'
+  return l
+}
+
 // Sprawdź czy answer grał w której ś lidze z kariery guess
 function compareHistoryLeagues(guessCareer: CareerEntry[], answerCareer: CareerEntry[]): Hint {
   const guessLeaguesMap = new Map<string, string>()
   for (const c of guessCareer) {
-    if (c.league) guessLeaguesMap.set(c.league.toLowerCase(), c.league)
+    if (c.league && isLeagueIncluded(c.league)) guessLeaguesMap.set(normalizeLeagueName(c.league), c.league)
   }
   const answerLeagues = new Set(
-    answerCareer.map(c => c.league?.toLowerCase()).filter((l): l is string => Boolean(l))
+    answerCareer.filter(c => c.league && isLeagueIncluded(c.league)).map(c => normalizeLeagueName(c.league!))
   )
 
   const commonLeagues: string[] = []
@@ -159,12 +169,12 @@ export function scorePlayerMatch(
   if (candidateClubs.size > 0 && answerClubs.size > 0 && Array.from(candidateClubs).some(c => answerClubs.has(c))) score++
 
   const candidateLeagues = new Set(
-    candidateCareer.map(c => c.league?.toLowerCase()).filter((l): l is string => Boolean(l))
+    candidateCareer.filter(c => c.league && isLeagueIncluded(c.league)).map(c => normalizeLeagueName(c.league!))
   )
-  const answerLeagues = new Set(
-    answerCareer.map(c => c.league?.toLowerCase()).filter((l): l is string => Boolean(l))
+  const answerLeagues2 = new Set(
+    answerCareer.filter(c => c.league && isLeagueIncluded(c.league)).map(c => normalizeLeagueName(c.league!))
   )
-  if (candidateLeagues.size > 0 && Array.from(candidateLeagues).some(l => answerLeagues.has(l))) score++
+  if (candidateLeagues.size > 0 && Array.from(candidateLeagues).some(l => answerLeagues2.has(l))) score++
 
   if (candidate.age != null && answer.age != null && Math.abs(candidate.age - answer.age) <= 3) score++
 
