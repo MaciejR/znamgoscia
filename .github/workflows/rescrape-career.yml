@@ -1,0 +1,63 @@
+name: Re-scrape Player Career
+
+on:
+  workflow_dispatch:
+    inputs:
+      player_name:
+        description: 'Nazwisko gracza (ILIKE %name%)'
+        required: false
+        type: string
+      player_id:
+        description: 'ID gracza (alternatywnie zamiast nazwiska)'
+        required: false
+        type: string
+      clean:
+        description: 'Wyczyść istniejące wpisy przed re-scrapingiem'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  rescrape-career:
+    runs-on: ubuntu-latest
+    environment: Preview
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'scripts/requirements.txt'
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Validate inputs
+        run: |
+          if [ -z "${{ inputs.player_name }}" ] && [ -z "${{ inputs.player_id }}" ]; then
+            echo "::error::Podaj player_name albo player_id"
+            exit 1
+          fi
+
+      - name: Re-scrape career
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          cd scripts
+          ARGS=""
+          if [ -n "${{ inputs.player_id }}" ]; then
+            ARGS="--player-id ${{ inputs.player_id }}"
+          elif [ -n "${{ inputs.player_name }}" ]; then
+            ARGS="--player-name '${{ inputs.player_name }}'"
+          fi
+          if [ "${{ inputs.clean }}" = "true" ]; then
+            ARGS="$ARGS --clean"
+          fi
+          echo "Running: python scrape_careers.py $ARGS"
+          eval "python scrape_careers.py $ARGS"

@@ -9,6 +9,9 @@ Użycie:
     python scrape_careers.py --refetch          # Wszyscy (nawet z karierą)
     python scrape_careers.py --missing-league   # Gracze z wpisami bez pola league
     python scrape_careers.py --min-delay 3      # Wolniejszy (ostrożniejszy)
+    python scrape_careers.py --player-name "Piszczek"  # Konkretny gracz (ILIKE)
+    python scrape_careers.py --player-id 123    # Konkretny gracz po ID
+    python scrape_careers.py --player-name "Piszczek" --clean  # Wyczyść stare wpisy przed re-scrapingiem
 """
 
 import os
@@ -35,6 +38,12 @@ def main():
                         help='Minimalne opóźnienie między żądaniami (domyślnie: 2.5s)')
     parser.add_argument('--max-delay', type=float, default=4.5,
                         help='Maksymalne opóźnienie między żądaniami (domyślnie: 4.5s)')
+    parser.add_argument('--player-name', type=str, default=None,
+                        help='Targetuj konkretnego gracza po nazwisku (substring match)')
+    parser.add_argument('--player-id', type=int, default=None,
+                        help='Targetuj konkretnego gracza po ID')
+    parser.add_argument('--clean', action='store_true',
+                        help='Usuń istniejące wpisy career_history dla targetowanych graczy przed re-scrapingiem')
     args = parser.parse_args()
 
     load_dotenv()
@@ -58,7 +67,16 @@ def main():
     result = db.client.table('players').select('id, name, transfermarkt_id').execute()
     all_players = result.data or []
 
-    if args.refetch:
+    if args.player_id is not None:
+        players = [p for p in all_players if p['id'] == args.player_id]
+        print(f"Targetowany gracz po ID {args.player_id}: {len(players)} znaleziony(ch)")
+    elif args.player_name:
+        name_lower = args.player_name.lower()
+        players = [p for p in all_players if name_lower in (p.get('name') or '').lower()]
+        print(f"Targetowany gracz po nazwie '{args.player_name}': {len(players)} znaleziony(ch)")
+        for p in players:
+            print(f"  - id={p['id']} name={p['name']}")
+    elif args.refetch:
         players = all_players
         print(f"Wszyscy zawodnicy: {len(players)}")
     elif args.missing_league:
@@ -99,6 +117,16 @@ def main():
     est_min = (len(players) * avg_delay) / 60
     print(f"Szacowany czas: ~{est_min:.0f} minut")
     print()
+
+    # Opcjonalnie wyczyść istniejące wpisy career_history
+    if args.clean:
+        player_ids = [p['id'] for p in players]
+        if player_ids:
+            print(f"Czyszczenie istniejących wpisów career_history dla {len(player_ids)} graczy...")
+            for pid in player_ids:
+                db.client.table('career_history').delete().eq('player_id', pid).execute()
+            print("Wyczyszczono.")
+            print()
 
     stats = {'ok': 0, 'no_career': 0, 'errors': 0, 'total_entries': 0}
 
